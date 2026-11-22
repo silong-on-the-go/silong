@@ -1,16 +1,16 @@
 /* SILONG service worker: works offline, loads instantly on repeat visits, and shows rain and heat alerts.
    Bump VERSION whenever the site changes so phones pick up the new files. */
-const VERSION = 'silong-core-2026-11-22d';
+const VERSION = 'silong-core-2026-11-22e';
 const CORE = ['./', 'index.html', 'config.js', 'lang-fil.js', 'manifest.webmanifest', 'qr.html',
   'img/5f47a2806a.png', 'img/5fa28b0e07.png', 'img/581e05ef1a.png', 'img/b3e5dbed33.png', 'img/2724515ba7.png', 'img/d87dedd030.png', 'img/eb52b0bc4b.png',
   'img/icon-180.png', 'img/icon-192.png', 'img/icon-512.png'];
-const TILES = 'silong-tiles', WEATHER = 'silong-weather', STATE = 'silong-state';
+const WEATHER = 'silong-weather', STATE = 'silong-state';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k.startsWith('silong-core-') && k !== VERSION).map((k) => caches.delete(k))))
+  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => (k.startsWith('silong-core-') && k !== VERSION) || k === 'silong-tiles').map((k) => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 
@@ -24,7 +24,7 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(networkFirst(e, VERSION, 2000, true)); return;                    /* the app itself: the newest copy if it arrives within 2 s, else the saved one */
   }
   if (url.hostname === 'api.open-meteo.com') { e.respondWith(networkFirst(e, WEATHER, 4000)); return; }
-  if (url.hostname.endsWith('basemaps.cartocdn.com')) { e.respondWith(cacheFirst(req, TILES, 600)); return; }
+  if (url.hostname === 'tile.openstreetmap.org') return;                     /* map tiles: the browser's own cache, as OpenStreetMap's tile policy asks */
   e.respondWith(cacheFirst(req, VERSION));                                     /* images, fonts, pinned libraries */
 });
 
@@ -51,15 +51,12 @@ function networkFirst(e, name, wait, app) {
     return hit || fresh;                                                     /* nothing saved yet: wait for the network */
   })();
 }
-async function cacheFirst(req, name, max) {
+async function cacheFirst(req, name) {
   const cache = await caches.open(name);
   const hit = await cache.match(req);
   if (hit) return hit;
   const res = await fetch(req);
-  if (res.ok) {  /* CORS responses only: real sizes in storage, and never a saved error page */
-    cache.put(req, res.clone());
-    if (max) cache.keys().then((keys) => keys.length > max && Promise.all(keys.slice(0, keys.length - max).map((k) => cache.delete(k))));
-  }
+  if (res.ok) cache.put(req, res.clone());  /* CORS responses only: real sizes in storage, and never a saved error page */
   return res;
 }
 

@@ -39,7 +39,7 @@ A free project pauses after a week with no activity. Restore it from the Supabas
 
 - **Alerts** reach the phone while SILONG is open. On Android, once SILONG is added to the home screen, they also arrive in the background, at most every few hours and as often as the phone allows. On iPhone, SILONG has to be added to the home screen before it can show notifications at all. Alerts that arrive on time even when the app is closed need a small server sending web push.
 - **Payments, unlocking and returns are simulated.** No money moves and no umbrella is released. The camera scan and the printed QR links choose a machine and start a demo rental.
-- **Google Maps is optional.** Put an API key in `config.js` to use it instead of OpenStreetMap.
+- **The map pictures come from OpenStreetMap's own servers.** They are free for light use such as this prototype. Before a public launch, move to a map service with a plan (for example MapTiler or Stadia Maps), or put a Google Maps key in `config.js`, because OpenStreetMap's [tile policy](https://operations.osmfoundation.org/policies/tiles/) doesn't allow heavy use.
 
 ## Files
 

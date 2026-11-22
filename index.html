@@ -1000,12 +1000,14 @@ body.no-mascot .ask-dock { width: 100%; }
 .ask-card .ask-face svg { width: 60px; height: 60px; margin-top: 10px; }
 .ask-card small { display: block; color: var(--ink-2); margin-top: 2px; }
 
-/* ---------- real map: OpenStreetMap data, CARTO map style, via Leaflet ---------- */
+/* ---------- real map: OpenStreetMap, via Leaflet. OSM has no dark style, so dark mode inverts its colours ---------- */
 .lmap { position: absolute; inset: 0; z-index: 0; background: var(--map-block); }
 .mapfx:has(.lmap) .radar { display: none; }
 .map-card .map-ctl { z-index: 1000; }
 .leaflet-container { font: inherit; }
 .leaflet-control-attribution { font-size: 10px; }
+:root[data-theme="dark"] .lmap .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.88) saturate(.7); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lmap .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.88) saturate(.7); } }
 .lmk { background: none !important; border: 0 !important; }
 .lmk-pin { position: relative; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; background: #fff; border: 3px solid #ffb720; box-shadow: 0 6px 14px rgba(0, 10, 30, .35); transition: transform .2s; }
 .lmk-pin img { width: 34px; height: 34px; border-radius: 9px; display: block; }
@@ -1914,7 +1916,7 @@ function mountMap(host, onSelect, opts = {}) {
     s.async = true; s.onerror = () => { toast('Google Maps could not load. Showing the preview map.'); buildPreview(); };
     document.head.appendChild(s);
   };
-  /* Real streets: OpenStreetMap data with the CARTO map style, drawn by Leaflet. No key needed. */
+  /* Real streets from OpenStreetMap, drawn by Leaflet. No key needed. */
   const buildLeaflet = () => {
     ctl.mode = 'osm';
     host.innerHTML = `<div class="lmap" role="application" aria-label="Map of Bonifacio Global City with the SILONG vending machines"></div>
@@ -1925,9 +1927,8 @@ function mountMap(host, onSelect, opts = {}) {
       const Lf = window.L, map = Lf.map($('.lmap', host), { zoomControl: false, scrollWheelZoom: !opts.fit }).setView([CENTER.lat, CENTER.lng], 17);
       (S.lmaps = S.lmaps || []).push(map);
       Lf.control.zoom({ position: 'bottomright' }).addTo(map);
-      const th = document.documentElement.dataset.theme, dark = th === 'dark' || (th !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
-      Lf.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark ? 'dark_all' : 'rastertiles/voyager'}/{z}/{x}/{y}{r}.png`, { subdomains: 'abcd', maxZoom: 20, crossOrigin: 'anonymous',
-        attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>' }).addTo(map);
+      Lf.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, crossOrigin: 'anonymous',
+        attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors' }).addTo(map);
       const markers = {};
       KIOSKS.forEach((k) => {
         const icon = Lf.divIcon({ className: 'lmk', html: `<span class="lmk-pin"><img src="${k.emblem}" alt=""><b>${k.id}</b></span>`, iconSize: [46, 56], iconAnchor: [23, 56] });
