@@ -22,9 +22,9 @@
 <meta name="apple-mobile-web-app-title" content="SILONG">
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="SILONG smart umbrella rental: find a Silongan vending machine in BGC, view rates, and manage rentals. Front-end prototype.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" crossorigin media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
 <style>
 /* Layout concept: app shell. Left sidebar on desktop, top bar + bottom tab bar on phones.
@@ -1000,6 +1000,34 @@ body.no-mascot .ask-dock { width: 100%; }
 .ask-card .ask-face svg { width: 60px; height: 60px; margin-top: 10px; }
 .ask-card small { display: block; color: var(--ink-2); margin-top: 2px; }
 
+/* ---------- real map: OpenStreetMap data, CARTO map style, via Leaflet ---------- */
+.lmap { position: absolute; inset: 0; z-index: 0; background: var(--map-block); }
+.mapfx:has(.lmap) .radar { display: none; }
+.map-card .map-ctl { z-index: 1000; }
+.leaflet-container { font: inherit; }
+.leaflet-control-attribution { font-size: 10px; }
+.lmk { background: none !important; border: 0 !important; }
+.lmk-pin { position: relative; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; background: #fff; border: 3px solid #ffb720; box-shadow: 0 6px 14px rgba(0, 10, 30, .35); transition: transform .2s; }
+.lmk-pin img { width: 34px; height: 34px; border-radius: 9px; display: block; }
+.lmk-pin b { position: absolute; top: -9px; right: -9px; min-width: 20px; height: 20px; border-radius: 10px; background: #0b2347; color: #fff; font: 800 11px/16px var(--font-display, sans-serif); text-align: center; border: 2px solid #fff; }
+.lmk-pin::after { content: ""; position: absolute; left: 50%; bottom: -10px; margin-left: -7px; border: 7px solid transparent; border-top-color: #ffb720; border-bottom: 0; }
+.lmk.sel .lmk-pin { transform: scale(1.15); border-color: #1b6fd1; }
+.lmk.sel .lmk-pin::after { border-top-color: #1b6fd1; }
+.me-dot { width: 18px; height: 18px; border-radius: 50%; background: #1b6fd1; border: 3px solid #fff; box-shadow: 0 0 0 6px rgba(27, 111, 209, .25); }
+/* ---------- camera QR scanner ---------- */
+.scanner { position: relative; border-radius: 18px; overflow: hidden; background: #000; aspect-ratio: 4 / 3; max-height: 52vh; }
+.scanner video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scan-frame { position: absolute; inset: 14% 22%; border: 3px solid rgba(255, 255, 255, .92); border-radius: 18px; box-shadow: 0 0 0 999px rgba(0, 0, 0, .35); }
+/* ---------- language switch and alerts ---------- */
+.lang-mini { min-width: 42px; height: 42px; padding: 0 8px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-weight: 800; font-size: .78rem; letter-spacing: .04em; cursor: pointer; }
+.side-user .lang-mini { margin-left: auto; min-width: 40px; height: 34px; flex: none; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; padding: 9px 14px; min-height: 40px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--btn); color: var(--btn-ink); }
+.auth-lang { display: flex; justify-content: flex-end; }
+.alert-btn { padding: 6px 10px; }
+.alert-btn[aria-pressed="true"] { color: var(--ok-fg, #14602b); }
+
 /* ---------- phones and tablets ---------- */
 /* 16px+ text in fields stops iPhone and iPad from zooming the page when a field is tapped */
 .input, select.input, textarea.input { font: inherit; font-size: max(16px, 1rem); }
@@ -1051,18 +1079,8 @@ body.no-mascot .ask-dock { width: 100%; }
 }
 </style>
 
-<script>
-/* ------------------------------------------------------------------
-   SILONG configuration.  Edit these values before deploying.
-   GOOGLE_MAPS_API_KEY: paste a Google Maps JavaScript API key between
-   the quotes to switch the Find a Silongan page from the built-in
-   preview map to live Google Maps. Leave empty to use the preview map.
-   Restrict the key to your domain in Google Cloud Console.
-------------------------------------------------------------------- */
-window.SILONG_CONFIG = {
-  GOOGLE_MAPS_API_KEY: ""
-};
-</script>
+<!-- Settings (Supabase accounts and visit counter, optional Google Maps key) live in config.js -->
+<script src="config.js"></script>
 
 <a class="skip" href="#main">Skip to content</a>
 
@@ -1102,6 +1120,8 @@ window.SILONG_CONFIG = {
     <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></symbol>
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15l1.5-2z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></symbol>
     <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="6" height="6" rx="1.2"/><rect x="14.5" y="3.5" width="6" height="6" rx="1.2"/><rect x="3.5" y="14.5" width="6" height="6" rx="1.2"/><path d="M14.5 14.5h2.5v2.5h-2.5zM18.5 18.5h2v2h-2zM14.5 20.5h1.5M20.5 14.5v1.5"/></symbol>
   </defs>
 </svg>
@@ -1152,7 +1172,7 @@ const CENTER = {
   address: '5th Avenue corner 28th Street, Bonifacio High Street, BGC, Taguig, Philippines',
   lat: 14.5515, lng: 121.0468, coords: '14.5515° N, 121.0468° E'
 };
-const dirUrl = (k) => 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(k.title + ', ' + k.address);
+const dirUrl = (k) => 'https://www.google.com/maps/dir/?api=1&travelmode=walking&destination=' + encodeURIComponent(k.title + ', ' + k.address);
 const centerUrl = () => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(CENTER.lat + ',' + CENTER.lng);
 
 /* Late-fee schedule from the supplied policy.
@@ -1175,7 +1195,7 @@ const peso = (n) => '₱' + Number(n).toFixed(2);
 const pesoW = (n) => '₱' + Number(n);
 const uid = () => Math.random().toString(36).slice(2, 10);
 const ic = (n, c = '') => `<svg class="ic ${c}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
-const fmtDT = (t) => new Date(t).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+const fmtDT = (t) => new Date(t).toLocaleString(I18N.lang === 'fil' ? 'fil-PH' : 'en-PH', { dateStyle: 'medium', timeStyle: 'short' });
 const fmtDur = (ms) => {
   ms = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(ms / 3600), m = Math.floor((ms % 3600) / 60), s = ms % 60;
@@ -1184,7 +1204,8 @@ const fmtDur = (ms) => {
 };
 const fmtDurShort = (ms) => {
   const m = Math.max(0, Math.round(ms / 60000));
-  const h = Math.floor(m / 60);
+  const h = Math.floor(m / 60), d = Math.floor(h / 24);
+  if (d > 0) return `${d}d ${h % 24}h`;
   return h > 0 ? `${h}h ${m % 60}m` : `${m}m`;
 };
 const plan = (id) => PLANS.find((p) => p.id === id);
@@ -1203,21 +1224,23 @@ function paygCost(ms) {
 }
 function paygQuote(ms) {
   const cost = paygCost(ms);
-  if (cost >= CAP) return { cost, sub: `${pesoW(cost)}, the maximum. The umbrella is yours to keep.`, pct: 100 };
+  if (cost >= CAP) return { cost, sub: bi(`${pesoW(cost)}, the maximum. The umbrella is yours to keep.`, `${pesoW(cost)}, ang pinakamataas na singil. Sa iyo na ang payong.`), pct: 100 };
   const h = ms / HOUR, days = Math.floor(h / 24), rest = h - days * 24;
   const step = PLANS.find((p) => rest < p.hours) || PLANS[PLANS.length - 1];
   const nextAt = (days * 24 + step.hours) * HOUR;
-  return { cost, sub: `${pesoW(cost)} so far · goes to ${pesoW(paygCost(nextAt + 1000))} in ${fmtDurShort(nextAt - ms)}`, pct: Math.min(100, rest / 24 * 100) };
+  const next = pesoW(paygCost(nextAt + 1000)), wait = fmtDurShort(nextAt - ms);
+  return { cost, sub: bi(`${pesoW(cost)} so far · goes to ${next} in ${wait}`, `${pesoW(cost)} na sa ngayon · magiging ${next} pagkalipas ng ${wait}`), pct: Math.min(100, rest / 24 * 100) };
 }
 
 /* ------------------------------ 2. SERVICES ------------------------------ */
 /* PROTOTYPE ONLY: localStorage is readable and editable by anyone using this
    browser. It is used to demonstrate flows and must not be treated as secure
    account management. */
+let cloudHook = null;   /* set by Cloud when accounts are connected: mirrors each signed-in user's data to the database */
 const mem = {};
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? (k in mem ? mem[k] : d) : JSON.parse(v); } catch (e) { return k in mem ? mem[k] : d; } },
-  set(k, v) { mem[k] = v; try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable: memory only */ } },
+  set(k, v) { mem[k] = v; try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable: memory only */ } if (cloudHook) cloudHook(k, v); },
   del(k) { delete mem[k]; try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
 };
 
@@ -1234,7 +1257,8 @@ const Auth = {
   users() { return store.get('silong.users', []); },
   pub(u) { return u ? { id: u.id, name: u.name, email: u.email, mobile: u.mobile, createdAt: u.createdAt } : null; },
   current() { const id = store.get('silong.session', null); return this.pub(this.users().find((u) => u.id === id)); },
-  async register({ name, email, mobile, password }) {
+  register(p) { return Cloud.on ? Cloud.register(p) : this.registerLocal(p); },
+  async registerLocal({ name, email, mobile, password }) {
     const users = this.users();
     if (users.some((u) => u.email === email.toLowerCase())) throw new Error('An account with this email already exists. Try logging in instead.');
     const salt = uid();
@@ -1243,13 +1267,15 @@ const Auth = {
     return this.pub(u);
   },
   async login(email, password) {
+    if (Cloud.on) { try { return await Cloud.login(email, password); } catch (err) { if (!this.users().some((x) => !x.cloud && x.email === email.toLowerCase())) throw err; } }
     const u = this.users().find((x) => x.email === email.toLowerCase());
     if (!u || u.hash !== await this.hash(password, u.salt)) throw new Error('Email or password is incorrect.');
     store.set('silong.session', u.id);
     return this.pub(u);
   },
-  logout() { store.del('silong.session'); },
+  logout() { if (Cloud.on) Cloud.logout(); store.del('silong.session'); },
   async update(id, { name, email, mobile, newPassword }) {
+    if (Cloud.on && (this.users().find((x) => x.id === id) || {}).cloud) return Cloud.update(id, { name, email, mobile, newPassword });
     const users = this.users();
     const u = users.find((x) => x.id === id);
     if (!u) throw new Error('Account not found.');
@@ -1410,6 +1436,262 @@ async function loadWeather() {
 /* ------------------------------ app state ------------------------------ */
 const S = { user: null, route: '', sel: 'A', pickKiosk: null, topic: '', lastStatus: null, map: null, modalResolve: null, lastFocus: null };
 const activeRental = () => S.user ? Rentals.all(S.user.id).find((r) => !r.returnedAt) : null;
+
+/* ------------------------------ 2b. PLATFORM ------------------------------ */
+/* Libraries, language, accounts (Supabase), the visit counter, alerts and QR scanning.
+   Third-party files are pinned to exact versions and checked with Subresource Integrity. */
+const LIBS = {
+  leafletJS: ['https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js', 'sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH'],
+  leafletCSS: ['https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css', 'sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H'],
+  jsQR: ['https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js', 'sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx'],
+  supabase: ['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js', 'sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK'],
+  fil: ['lang-fil.js', '']
+};
+const libLoads = {};
+function loadScript([src, integrity]) {
+  if (!libLoads[src]) libLoads[src] = new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = src; s.async = true;
+    if (integrity) { s.integrity = integrity; s.crossOrigin = 'anonymous'; }
+    s.onload = () => res(); s.onerror = () => { delete libLoads[src]; s.remove(); rej(new Error('Could not load ' + src)); };
+    document.head.appendChild(s);
+  });
+  return libLoads[src];
+}
+function loadCSS([href, integrity]) {
+  if (document.querySelector(`link[data-lib="${href}"]`)) return;
+  const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; l.dataset.lib = href;
+  if (integrity) { l.integrity = integrity; l.crossOrigin = 'anonymous'; }
+  document.head.appendChild(l);
+}
+const within = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+const deviceKind = () => (innerWidth < 700 ? 'phone' : innerWidth < 1024 ? 'tablet' : 'desktop');
+
+/* distance in metres between two points (accurate enough at city scale) and walking time */
+const distM = (lat1, lng1, lat2, lng2) => { const r = Math.PI / 180, x = (lng2 - lng1) * r * Math.cos((lat1 + lat2) / 2 * r), y = (lat2 - lat1) * r; return Math.hypot(x, y) * 6371000; };
+const nearestKiosk = (lat, lng) => KIOSKS.map((k) => ({ k, m: distM(lat, lng, k.lat, k.lng) })).sort((a, b) => a.m - b.m)[0];
+const fmtDist = (m) => (m < 1000 ? Math.max(10, Math.round(m / 10) * 10) + ' m' : (m / 1000).toFixed(m < 10000 ? 1 : 0) + ' km');
+const walkMin = (m) => Math.max(1, Math.round(m * 1.3 / 80));   /* streets aren't straight lines: about 1.3x, at 80 m a minute */
+
+/* ---- Language: English or Filipino. Filipino text comes from lang-fil.js; a watcher translates every
+   screen, dialog and message as it appears, so the templates stay in one language. ---- */
+const I18N = {
+  lang: (() => { const s = store.get('silong.lang', null); return s === 'en' || s === 'fil' ? s : (/^(fil|tl)\b/i.test(navigator.language || '') ? 'fil' : 'en'); })(),
+  async init() {
+    document.documentElement.lang = this.lang;
+    new MutationObserver((muts) => {
+      if (this.lang !== 'fil' || !window.SILONG_FIL) return;
+      for (const m of muts) { if (m.type === 'characterData') trText(m.target); else m.addedNodes.forEach(trDeep); }
+    }).observe(document.body, { childList: true, subtree: true, characterData: true });
+    if (this.lang === 'fil') { await this.load(); if (window.SILONG_FIL) trDeep(document.body); }
+  },
+  async load() { if (!window.SILONG_FIL) await within(loadScript(LIBS.fil), 6000).catch(() => {}); },
+  set(l) {
+    if (l === this.lang || (l !== 'en' && l !== 'fil')) return;
+    store.set('silong.lang', l);
+    location.reload();   /* a fresh start in the new language: every screen, label and message (fast: the app is cached) */
+  }
+};
+const bi = (en, tl) => (I18N.lang === 'fil' ? tl : en);   /* pick the sentence for the current language */
+function tr(s) {
+  const F = window.SILONG_FIL; if (!F || I18N.lang !== 'fil' || !s) return s;
+  const core = s.trim(); if (!core || !/[A-Za-z]/.test(core)) return s;
+  let out = F.dict[core];
+  if (out === undefined) for (const [re, rep] of F.patterns) { if (re.test(core)) { out = core.replace(re, rep); break; } }
+  return out === undefined || out === core ? s : s.replace(core, out);
+}
+function trText(n) { const v = tr(n.nodeValue); if (v !== n.nodeValue) n.nodeValue = v; }
+function trDeep(n) {
+  if (n.nodeType === 3) return trText(n);
+  if (n.nodeType !== 1 || /^(script|style)$/i.test(n.nodeName) || n.classList.contains('notr')) return;
+  for (const a of ['placeholder', 'aria-label', 'title']) { const v = n.getAttribute(a); if (v) { const t = tr(v); if (t !== v) n.setAttribute(a, t); } }
+  if (/^(svg|textarea)$/i.test(n.nodeName)) return;   /* labels on drawings get translated; their inner text (street names) stays */
+  n.childNodes.forEach(trDeep);
+}
+
+/* ---- Visit counter: anonymous events to Supabase (no cookies, no IP addresses, no user ids).
+   Off until SUPABASE_URL and SUPABASE_KEY are set in config.js. Honors Do Not Track. ---- */
+const Stats = {
+  ok: () => !!(CFG.SUPABASE_URL && CFG.SUPABASE_KEY) && navigator.doNotTrack !== '1' && !store.get('silong.nostats', false),
+  event(name) {
+    if (!this.ok()) return;
+    const key = CFG.SUPABASE_KEY, headers = { apikey: key, 'Content-Type': 'application/json', Prefer: 'return=minimal' };
+    if (key.split('.').length === 3) headers.Authorization = 'Bearer ' + key;   /* legacy anon keys are JWTs */
+    fetch(CFG.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/events', { method: 'POST', headers, keepalive: true,
+      body: JSON.stringify({ event: name, device: deviceKind(), lang: I18N.lang }) }).catch(() => {});
+  }
+};
+
+/* ---- Accounts and data across devices (Supabase). Off until config.js has the project URL and key:
+   until then accounts live in this browser, exactly as before. The app keeps working from this device's
+   copy and mirrors each signed-in user's rentals and credit to the database. ---- */
+const Cloud = {
+  sb: null, on: false, pulling: false, timers: {},
+  configured: () => !!(CFG.SUPABASE_URL && CFG.SUPABASE_KEY),
+  async init() {
+    if (!this.configured()) return;
+    try {
+      await within(loadScript(LIBS.supabase), 8000);
+      this.sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'silong.auth' } });
+      this.on = true; cloudHook = (k, v) => this.push(k, v);
+      const { data } = await within(this.sb.auth.getSession(), 6000);
+      const cur = Auth.users().find((u) => u.id === store.get('silong.session', null));
+      if (data && data.session) await this.adopt(data.session.user);
+      else if (cur && cur.cloud) store.del('silong.session');   /* the cloud session ended: sign out here too */
+    } catch (e) { /* offline or blocked: keep working from this device's copy */ }
+  },
+  userFrom(u) {
+    const m = u.user_metadata || {};
+    return { id: u.id, name: m.name || (u.is_anonymous ? 'Guest' : String(u.email || 'SILONG user').split('@')[0]), email: u.email || 'guest@demo.silong.ph',
+      mobile: m.mobile || '', createdAt: Date.parse(u.created_at) || Date.now(), cloud: true, guest: !!u.is_anonymous };
+  },
+  async adopt(u) {
+    const me = this.userFrom(u);
+    store.set('silong.users', Auth.users().filter((x) => x.id !== me.id).concat([me])); store.set('silong.session', me.id);
+    await within(this.pull(me.id), 6000).catch(() => {});
+    return Auth.pub(me);
+  },
+  async pull(uid) {
+    const { data, error } = await this.sb.from('user_data').select('key,value').eq('user_id', uid);
+    if (error || !data) return;
+    this.pulling = true; try { data.forEach((row) => store.set(`silong.${row.key}.${uid}`, row.value)); } finally { this.pulling = false; }
+  },
+  push(k, v) {
+    const m = /^silong\.(rentals|wallet)\.(.+)$/.exec(k); if (!m || this.pulling || !this.sb) return;
+    const u = Auth.users().find((x) => x.id === m[2]); if (!u || !u.cloud) return;
+    clearTimeout(this.timers[k]);
+    this.timers[k] = setTimeout(() => this.sb.from('user_data').upsert({ user_id: m[2], key: m[1], value: v, updated_at: new Date().toISOString() })
+      .then(({ error }) => { if (error) console.warn('SILONG sync:', error.message); }), 500);
+  },
+  errMsg(e) {
+    const s = String((e && e.message) || e);
+    if (/invalid login credentials/i.test(s)) return 'Email or password is incorrect.';
+    if (/already (registered|exists)/i.test(s)) return 'An account with this email already exists. Try logging in instead.';
+    if (/rate limit/i.test(s)) return 'Too many tries. Wait a minute and try again.';
+    if (/fetch|network|timeout/i.test(s)) return 'Can’t reach SILONG right now. Check your connection and try again.';
+    return s;
+  },
+  async register({ name, email, mobile, password }) {
+    const { data, error } = await this.sb.auth.signUp({ email, password, options: { data: { name, mobile } } });
+    if (error) throw new Error(this.errMsg(error));
+    if (!data.session) throw new Error('Almost done: open the link we emailed you, then log in.');
+    return this.adopt(data.user);
+  },
+  async login(email, password) {
+    const { data, error } = await this.sb.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(this.errMsg(error));
+    return this.adopt(data.user);
+  },
+  async demo() {
+    const { data, error } = await this.sb.auth.signInAnonymously({ options: { data: { name: 'Guest' } } });
+    if (error) throw error;
+    return this.adopt(data.user);
+  },
+  logout() { if (this.sb) this.sb.auth.signOut().catch(() => {}); },
+  async update(id, { name, email, mobile, newPassword }) {
+    const cur = Auth.users().find((x) => x.id === id) || {}, attrs = { data: { name, mobile } };
+    if (newPassword) attrs.password = newPassword;
+    if (email && email.toLowerCase() !== cur.email && !cur.guest) attrs.email = email;
+    const { data, error } = await this.sb.auth.updateUser(attrs);
+    if (error) throw new Error(this.errMsg(error));
+    if (attrs.email) toast('Check your new email to confirm the change.');
+    return this.adopt(data.user);
+  },
+  async removeMe() {
+    const { error } = await this.sb.rpc('delete_my_account');
+    if (error) throw new Error(this.errMsg(error));
+    await this.sb.auth.signOut().catch(() => {});
+  },
+  async ticket(t) {
+    if (!this.sb) return false;
+    const { error } = await this.sb.from('tickets').insert({ name: t.name, email: t.email, category: t.category, reference: t.txRef || null, message: t.message });
+    return !error;
+  }
+};
+
+/* ---- Rain and heat alerts. The service worker checks the forecast and shows the notification: every
+   30 minutes while SILONG is open, and in the background where the browser allows it (Chrome on
+   Android with SILONG on the home screen). ---- */
+const Alerts = {
+  on: () => !!store.get('silong.alerts', false),
+  supported: () => 'Notification' in window && 'serviceWorker' in navigator && isSecureContext,
+  reg() { return within(navigator.serviceWorker.ready, 4000); },
+  async post(msg) { try { const r = await this.reg(); const w = r.active || navigator.serviceWorker.controller; if (w) w.postMessage(msg); return !!w; } catch (e) { return false; } },
+  sync() { if (this.supported()) this.post({ type: 'alerts-settings', enabled: this.on(), lang: I18N.lang }); },
+  async enable() {
+    if (!this.supported()) { toast('This browser can’t show notifications.'); return false; }
+    const p = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+    if (p !== 'granted') { toast('Notifications are blocked. Allow them in your browser’s site settings.'); return false; }
+    store.set('silong.alerts', true); this.sync(); this.post({ type: 'check-weather', force: 'test', lang: I18N.lang });
+    try { const r = await this.reg(); if ('periodicSync' in r) await r.periodicSync.register('silong-weather', { minInterval: 3 * 3600000 }); } catch (e) { /* needs Chrome and an installed app */ }
+    return true;
+  },
+  async disable() {
+    store.set('silong.alerts', false); this.sync();
+    try { const r = await this.reg(); if ('periodicSync' in r) await r.periodicSync.unregister('silong-weather'); } catch (e) { /* nothing registered */ }
+  },
+  check() { if (this.on() && this.supported()) this.post({ type: 'check-weather', lang: I18N.lang }); }
+};
+setInterval(() => Alerts.check(), 30 * 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) Alerts.check(); });
+
+/* ---- QR codes. Printed codes (qr.html) open the site at #scan=A, so any phone camera works; inside the
+   app, "Scan with camera" reads them live (the browser's own reader, or jsQR where there is none, e.g. iPhone). ---- */
+const canScan = () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && isSecureContext;
+const parseSilongQR = (t) => { const m = /#scan=([a-z])\b/i.exec(t) || /^SILONG[-: ]?([a-z])$/i.exec(String(t).trim()); const id = m && m[1].toUpperCase(); return id && kiosk(id) ? id : null; };
+async function openScanner() {
+  if (!canScan()) { toast('This browser can’t use the camera here. Pick the machine instead.'); return; }
+  openModal({ label: 'Scan a Silongan QR', html: `
+    <div class="modal-head"><div><span class="eyebrow">Scan to rent · demo</span><h2>Point at the Silongan’s QR</h2></div><button class="icon-btn" type="button" data-close aria-label="Close">${ic('x')}</button></div>
+    <div class="scanner"><video id="scan-video" playsinline muted autoplay></video><span class="scan-frame" aria-hidden="true"></span></div>
+    <p class="muted small" id="scan-status" role="status" style="margin:0">Starting the camera…</p>
+    <p class="muted small" style="margin:0">No QR nearby? <a href="qr.html" target="_blank" rel="noopener">Open the demo QR codes</a> on another screen, or print them.</p>` });
+  const status = (msg) => { const s = $('#scan-status'); if (s) s.textContent = msg; };
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false }); }
+  catch (e) { status('The camera is blocked or unavailable. Allow camera access, or close this and pick the machine.'); return; }
+  const v = $('#scan-video'), stop = () => stream.getTracks().forEach((t) => t.stop());
+  if (!v) { stop(); return; }
+  v.srcObject = stream; try { await v.play(); } catch (e) { /* autoplay may still start it */ }
+  let detector = null;
+  if ('BarcodeDetector' in window) { try { if ((await BarcodeDetector.getSupportedFormats()).includes('qr_code')) detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { detector = null; } }
+  if (!detector) { try { await within(loadScript(LIBS.jsQR), 10000); } catch (e) { status('Couldn’t load the QR reader. Check your connection.'); } }
+  const cv = document.createElement('canvas'), g = cv.getContext('2d', { willReadFrequently: true });
+  status('Looking for a SILONG QR…');
+  const tick = async () => {
+    if (!v.isConnected) { stop(); return; }   /* the dialog was closed */
+    let text = null;
+    try {
+      if (v.readyState >= 2 && v.videoWidth) {
+        if (detector) { const c = await detector.detect(v); text = c[0] && c[0].rawValue; }
+        else if (window.jsQR) {
+          const w = Math.min(640, v.videoWidth), h = Math.round(v.videoHeight * w / v.videoWidth); cv.width = w; cv.height = h; g.drawImage(v, 0, 0, w, h);
+          const r = window.jsQR(g.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'attemptBoth' }); text = r && r.data;
+        }
+      }
+    } catch (e) { text = null; }
+    const id = text && parseSilongQR(text);
+    if (id) { stop(); closeModal(true); Stats.event('qr_scan'); unlockAt(id); return; }
+    if (text) status('That QR isn’t a SILONG machine. Point at the code on a Silongan.');
+    setTimeout(tick, 200);
+  };
+  tick();
+}
+function unlockAt(id) {
+  if (!S.user) { S.pendingScan = id; navigate('welcome'); return; }
+  if (activeRental()) { toast('You already have an umbrella out. Return it first.'); navigate('rentals'); return; }
+  const rental = Rentals.start(S.user.id, { planId: '24h', kioskId: id });
+  Rentals.update(S.user.id, rental.id, (x) => { x.payg = true; x.label = 'Pay as you go'; x.price = 0; });
+  Stats.event('rental_start');
+  toast('Umbrella unlocked at Silongan ' + id + ' (demo). The meter is running.'); navigate('rentals');
+}
+function scannedAt(id) {
+  if (activeRental()) { toast('You already have an umbrella out. Return it first.'); navigate('rentals'); return; }
+  rentSheet(id); toast('You scanned Silongan ' + id + '.');
+}
+
+/* ---- Offline: the service worker keeps a copy of the app; these just say what's happening. ---- */
+addEventListener('offline', () => toast('You’re offline. SILONG keeps working with what’s saved on this device.'));
+addEventListener('online', () => { toast('Back online.'); Wx.at = 0; if (S.user && S.route === 'home') initSky(); });
 
 /* ------------------------------ 3. UI HELPERS ------------------------------ */
 function toast(msg) {
@@ -1632,7 +1914,51 @@ function mountMap(host, onSelect, opts = {}) {
     s.async = true; s.onerror = () => { toast('Google Maps could not load. Showing the preview map.'); buildPreview(); };
     document.head.appendChild(s);
   };
-  useGoogle ? buildGoogle() : buildPreview();
+  /* Real streets: OpenStreetMap data with the CARTO map style, drawn by Leaflet. No key needed. */
+  const buildLeaflet = () => {
+    ctl.mode = 'osm';
+    host.innerHTML = `<div class="lmap" role="application" aria-label="Map of Bonifacio Global City with the SILONG vending machines"></div>
+      <div class="map-ctl"><button class="icon-btn" type="button" data-lmap="locate" aria-label="Find the Silongan nearest me">${ic('nav')}</button><button class="icon-btn" type="button" data-lmap="fit" aria-label="Show all Silongans">${ic('fit')}</button></div>`;
+    loadCSS(LIBS.leafletCSS);
+    within(loadScript(LIBS.leafletJS), 10000).then(() => {
+      if (!host.isConnected) return;
+      const Lf = window.L, map = Lf.map($('.lmap', host), { zoomControl: false, scrollWheelZoom: !opts.fit }).setView([CENTER.lat, CENTER.lng], 17);
+      (S.lmaps = S.lmaps || []).push(map);
+      Lf.control.zoom({ position: 'bottomright' }).addTo(map);
+      const th = document.documentElement.dataset.theme, dark = th === 'dark' || (th !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+      Lf.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark ? 'dark_all' : 'rastertiles/voyager'}/{z}/{x}/{y}{r}.png`, { subdomains: 'abcd', maxZoom: 20, crossOrigin: 'anonymous',
+        attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>' }).addTo(map);
+      const markers = {};
+      KIOSKS.forEach((k) => {
+        const icon = Lf.divIcon({ className: 'lmk', html: `<span class="lmk-pin"><img src="${k.emblem}" alt=""><b>${k.id}</b></span>`, iconSize: [46, 56], iconAnchor: [23, 56] });
+        markers[k.id] = Lf.marker([k.lat, k.lng], { icon, title: 'Silongan ' + k.id, alt: 'Silongan ' + k.id, riseOnHover: true }).addTo(map).on('click', () => onSelect(k.id));
+      });
+      const bounds = Lf.latLngBounds(KIOSKS.map((k) => [k.lat, k.lng])).pad(opts.fit ? 0.8 : 0.5);
+      const mark = (id) => Object.entries(markers).forEach(([mid, m]) => { const e = m.getElement(); if (e) e.classList.toggle('sel', mid === id); });
+      map.fitBounds(bounds);
+      ctl.select = (id) => { const k = kiosk(id); mark(id); map.flyTo([k.lat, k.lng], 18, { duration: calm() ? 0 : 0.6 }); };
+      ctl.reset = () => map.flyToBounds(bounds, { duration: calm() ? 0 : 0.6 });
+      ctl.redraw = () => map.invalidateSize();
+      let me = null;
+      ctl.locate = () => {
+        if (!navigator.geolocation) { toast('Location isn’t available on this device.'); return; }
+        toast('Finding you…');
+        navigator.geolocation.getCurrentPosition((pos) => {
+          if (!host.isConnected) return;
+          const here = [pos.coords.latitude, pos.coords.longitude], n = nearestKiosk(here[0], here[1]);
+          if (me) me.setLatLng(here);
+          else me = Lf.marker(here, { icon: Lf.divIcon({ className: 'lmk', html: '<span class="me-dot"></span>', iconSize: [18, 18], iconAnchor: [9, 9] }), title: 'You are here', interactive: false }).addTo(map);
+          mark(n.k.id); map.flyToBounds(Lf.latLngBounds([here, [n.k.lat, n.k.lng]]).pad(0.35), { maxZoom: 18, duration: calm() ? 0 : 0.8 });
+          S.sel = n.k.id; $$('.loc[data-loc]').forEach((x) => x.classList.toggle('sel', x.dataset.loc === n.k.id));
+          toast(`Nearest: Silongan ${n.k.id}, ${fmtDist(n.m)} away, about ${walkMin(n.m)} min on foot.`);
+        }, () => toast('Couldn’t get your location. Allow location access and try again.'), { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+      };
+      host.addEventListener('click', (e) => { const b = e.target.closest('[data-lmap]'); if (!b) return; if (b.dataset.lmap === 'fit') ctl.reset(); else ctl.locate(); });
+      setTimeout(() => map.invalidateSize(), 150);
+      if (!opts.fit && S.sel) mark(S.sel);
+    }).catch(() => { if (host.isConnected) { ctl.mode = 'preview'; buildPreview(); } });
+  };
+  useGoogle ? buildGoogle() : (navigator.onLine === false ? buildPreview() : buildLeaflet());
   return ctl;
 }
 
@@ -1801,7 +2127,7 @@ function viewHome() {
       <div class="skyline" aria-hidden="true"></div><div class="pattern-strip"></div>
     </section>
 
-    <section class="stack today" aria-label="Today in BGC"><div class="sec-head"><h2>Today in BGC</h2><span class="muted small">Rain, sun and daylight</span></div>
+    <section class="stack today" aria-label="Today in BGC"><div class="sec-head"><h2>Today in BGC</h2><button class="btn ghost sm alert-btn" type="button" data-action="alerts-toggle" aria-pressed="${Alerts.on()}">${ic('bell', 'sm')} ${Alerts.on() ? 'Alerts on' : 'Rain and heat alerts'}</button></div>
       ${skyHTML()}</section>
 
 
@@ -1820,7 +2146,7 @@ function viewHome() {
       <div class="mapfx"><div class="map-card cool" id="home-map"></div>${CFG.GOOGLE_MAPS_API_KEY ? '' : '<div class="radar" aria-hidden="true"></div>'}
         <div class="mapfx-chip"><i></i>${KIOSKS.length} vending machines around BGC</div></div>
       <div class="legend">${KIOSKS.map((k) => `<button class="lg-chip" type="button" data-action="home-pin" data-id="${k.id}"><img src="${k.emblem}" alt=""><span><b>Silongan ${k.id}</b><small>${esc(k.title)}</small></span></button>`).join('')}</div>
-      <p class="muted small">${CFG.GOOGLE_MAPS_API_KEY ? '' : 'Preview map: a simplified night view, not to scale. Pin positions are approximate. Live availability is not connected yet.'}</p>
+      <p class="muted small">Pin positions are approximate until the machines are installed. Live availability is not connected yet.</p>
     </section>
 
     <p class="footnote">${SIM_NOTE}</p>
@@ -1898,7 +2224,8 @@ function viewLocations() {
     </section>
     <div class="locations">
       <div><div class="mapfx"><div class="map-card cool" id="map-host"></div>${CFG.GOOGLE_MAPS_API_KEY ? '' : '<div class="radar" aria-hidden="true"></div>'}<div class="mapfx-chip"><i></i>Tap a pin to focus</div></div>
-        <p class="muted small" style="margin-top:10px">${CFG.GOOGLE_MAPS_API_KEY ? '' : 'Preview map: a simplified night view, not to scale. Pin positions are approximate.'}</p></div>
+        <div class="btn-row" style="margin-top:10px"><button class="btn secondary sm" type="button" data-action="locate">${ic('nav', 'sm')} Find the one nearest me</button><a class="btn ghost sm" href="qr.html" target="_blank" rel="noopener">${ic('qr', 'sm')} Print the demo QR codes</a></div>
+        <p class="muted small" style="margin-top:8px">Pin positions are approximate until the machines are installed.</p></div>
       <div class="loc-list">
         ${KIOSKS.map(locCard).join('')}
         <article class="loc loc-ref"><div class="loc-head"><span class="pin">${ic('pin')}</span><div style="min-width:0"><span class="eyebrow">Central reference point</span><h3 class="loc-title">${CENTER.name}</h3><p class="loc-addr">${CENTER.address}</p><p class="loc-addr num">${CENTER.coords}</p></div></div>
@@ -1933,7 +2260,7 @@ function rentSheet(kioskId) {
   const kid = kioskId || S.pickKiosk || 'A';
   openModal({ label: 'Unlock an umbrella', html: `
     <div class="modal-head"><div><span class="eyebrow">Scan to rent · demo</span><h2>Unlock an umbrella</h2></div><button class="icon-btn" type="button" data-close aria-label="Close">${ic('x')}</button></div>
-    <div class="scan-box"><span class="qr">${ic('qr')}</span><div><b>At the machine, you scan its QR code with this app.</b><p class="muted small" style="margin:4px 0 0">In this demo, pick the machine below instead.</p></div></div>
+    <div class="scan-box"><span class="qr">${ic('qr')}</span><div><b>At the machine, you scan its QR code with this app.</b><p class="muted small" style="margin:4px 0 0">${canScan() ? 'Try it with a printed SILONG QR, or pick the machine below.' : 'In this demo, pick the machine below instead.'}</p>${canScan() ? `<button class="btn sm" type="button" data-action="scan-camera" style="margin-top:10px">${ic('qr', 'sm')} Scan with camera</button>` : ''}</div></div>
     <fieldset style="border:0;padding:0;margin:0;display:grid;gap:10px"><legend class="lbl" style="font-weight:600;margin-bottom:8px">Vending machine</legend>
       ${KIOSKS.map((k) => `<label class="opt"><input type="radio" name="kiosk" value="${k.id}" ${k.id === kid ? 'checked' : ''}><span><b>Silongan ${k.id}</b><span>${esc(k.title)}</span></span></label>`).join('')}
     </fieldset>
@@ -2098,19 +2425,25 @@ function viewSupport() {
 function viewAccount() {
   const u = S.user;
   const rows = [
-    ['Authentication and accounts', 'Simulated (this browser only)'], ['Rental records database', 'Simulated (this browser only)'], ['Linked payment (GCash, Maya, card)', 'Simulated'], ['SILONG credit', 'Simulated demo credit'],
+    ['Authentication and accounts', Cloud.on ? 'Connected (Supabase)' : 'Simulated (this browser only)'], ['Rental records database', Cloud.on ? 'Connected (Supabase)' : 'Simulated (this browser only)'], ['Linked payment (GCash, Maya, card)', 'Simulated'], ['SILONG credit', 'Simulated demo credit'],
     ['Weather', CFG.WEATHER_ENABLED ? 'Open-Meteo when reachable' : 'Off'], ['Sunrise and sunset', 'Calculated on device'],
-    ['Google Maps', CFG.GOOGLE_MAPS_API_KEY ? 'Key configured' : 'Preview map, no API key'], ['QR unlock at the machine', 'Not connected'],
+    ['Map', CFG.GOOGLE_MAPS_API_KEY ? 'Google Maps' : 'OpenStreetMap'], ['QR unlock at the machine', 'Simulated (camera scan)'],
     ['RFID umbrella tracking', 'Not connected'], ['Vending machine hardware', 'Not connected'], ['Live inventory and vending machine status', 'Not connected'],
-    ['Pay-as-you-go charges', 'Calculated in demo only'], ['Customer support backend', 'Not connected']
+    ['Pay-as-you-go charges', 'Calculated in demo only'], ['Customer support backend', Cloud.on ? 'Connected (Supabase)' : 'Not connected'],
+    ['Visit counter', Cloud.configured() ? 'Connected (stats page)' : 'Not connected'], ['Works offline', 'serviceWorker' in navigator ? 'On' : 'Not supported here'],
+    ['Rain and heat alerts', Alerts.on() ? 'On' : 'Off']
   ];
   return `<div class="view">
     ${pageHead('My account')}
     <div class="grid two-col" style="gap:22px">
       <div class="stack">
         <div class="card"><div class="row" style="flex-wrap:nowrap;gap:16px"><div class="avatar lg" aria-hidden="true">${esc(initials(u.name))}</div>
-          <div style="min-width:0"><h2 style="overflow-wrap:anywhere">${esc(u.name)}</h2><p class="muted small">Member since ${new Date(u.createdAt).toLocaleDateString('en-PH', { dateStyle: 'medium' })}</p></div></div>
+          <div style="min-width:0"><h2 style="overflow-wrap:anywhere">${esc(u.name)}</h2><p class="muted small">Member since ${new Date(u.createdAt).toLocaleDateString(I18N.lang === 'fil' ? 'fil-PH' : 'en-PH', { dateStyle: 'medium' })}</p></div></div>
           <dl class="kv" style="margin-top:12px"><div><dt>Email</dt><dd>${esc(u.email)}</dd></div><div><dt>Mobile</dt><dd class="num">${esc(u.mobile)}</dd></div></dl></div>
+        <div class="card"><div class="row between" style="flex-wrap:wrap;gap:12px"><div style="min-width:0"><h3>Language</h3><p class="muted small">Every screen and Kuya Silong, in English or Filipino.</p></div>
+          <div class="seg notr" role="group" aria-label="Language"><button type="button" data-action="lang-set" data-lang="en" aria-pressed="${I18N.lang === 'en'}">English</button><button type="button" data-action="lang-set" data-lang="fil" aria-pressed="${I18N.lang === 'fil'}">Filipino</button></div></div></div>
+        <div class="card"><div class="row between" style="flex-wrap:wrap;gap:12px"><div style="min-width:0;flex:1 1 220px"><h3>Rain and heat alerts</h3><p class="muted small">A notification when rain or strong sun is coming in BGC. Works while SILONG is open, and in the background on Android once it’s added to the home screen.</p></div>
+          <button class="btn ${Alerts.on() ? '' : 'secondary'} sm" type="button" data-action="alerts-toggle" aria-pressed="${Alerts.on()}">${ic('bell', 'sm')} ${Alerts.on() ? 'On' : 'Turn on'}</button></div></div>
         <form class="card form" id="profile-form" novalidate data-form="profile"><h3>Edit profile</h3>
           ${field({ id: 'pf-name', label: 'Full name', value: u.name, autocomplete: 'name' })}
           ${field({ id: 'pf-email', label: 'Email address', type: 'email', value: u.email, autocomplete: 'email' })}
@@ -2122,7 +2455,7 @@ function viewAccount() {
       </div>
       <div class="stack"><div class="card"><h3>Prototype status</h3><p class="muted small">What is simulated and what is connected.</p>
         <div class="status-grid" style="margin-top:8px">${rows.map((r) => `<div><span>${r[0]}</span><span class="chip plain ${r[1] === 'Not connected' ? '' : 'sim'}">${r[1]}</span></div>`).join('')}</div></div>
-        <div class="notice warn">${ic('info', 'sm')}<span>Accounts here live in this browser’s local storage. That is a demonstration, not secure account management. A production version needs a secure backend.</span></div></div>
+        <div class="notice ${Cloud.on ? '' : 'warn'}">${ic('info', 'sm')}<span>${Cloud.on ? 'Your account and rentals are saved to SILONG’s database, so they follow you to any device.' : 'Accounts here live in this browser’s local storage. That is a demonstration, not secure account management. A production version needs a secure backend.'}</span></div></div>
     </div></div>`;
 }
 
@@ -2174,7 +2507,9 @@ function renderAuth(r) {
       <div class="notice quiet">${ic('info', 'sm')}<span>Prototype: accounts are stored in this browser only and are not secure.</span></div>`;
   } else {
     mode = 'welcome';
-    inner = `<span class="eyebrow">Smart umbrella rental · BGC</span>
+    inner = `<div class="auth-lang"><div class="seg notr" role="group" aria-label="Language"><button type="button" data-action="lang-set" data-lang="en" aria-pressed="${I18N.lang === 'en'}">English</button><button type="button" data-action="lang-set" data-lang="fil" aria-pressed="${I18N.lang === 'fil'}">Filipino</button></div></div>
+      ${S.pendingScan ? `<div class="notice">${ic('qr', 'sm')}<span>${bi(`You scanned <b>Silongan ${S.pendingScan}</b>. Try the demo or log in, and it opens right there.`, `Na-scan mo ang <b>Silongan ${S.pendingScan}</b>. Subukan ang demo o mag-log in, at doon ito bubukas.`)}</span></div>` : ''}
+      <span class="eyebrow">Smart umbrella rental · BGC</span>
       <div><h1 class="tagline">Shelter on the Go.</h1><p class="muted" style="margin-top:10px;font-size:1.05rem">Rain or shine, borrow an umbrella in BGC and return it to any Silongan. You pay only for the time you use.</p></div>
       <ul class="feat"><li><span class="ft">${ic('pin', 'sm')}</span>Find a Silongan around BGC</li><li><span class="ft">${ic('tag', 'sm')}</span>₱15 for the first hour, never more than ₱40 a day</li><li><span class="ft">${ic('qr', 'sm')}</span>Scan the QR, take an umbrella, return it anywhere</li></ul>
       <div class="auth-actions"><button class="btn block" type="button" data-action="try-demo">Try the demo, no sign-up ${ic('arrow', 'sm')}</button><a class="btn secondary block" href="#register">Create an account</a><p class="muted small alt">Already have an account? <a href="#login">Log in</a></p></div>
@@ -2201,11 +2536,11 @@ function buildShell() {
       <a class="brandmark" href="#home" data-go="home" aria-label="SILONG home"><img src="img/5f47a2806a.png" alt="SILONG" width="900" height="467"></a>
       <nav aria-label="Main">${NAV.map((n, i) => `${n.id === 'how' ? '<div class="nav-sep"></div>' : ''}<a class="nav-link" href="#${n.id}" data-go="${n.id}" data-nav="${n.id}">${ic(n.icon)}${n.label}</a>`).join('')}</nav>
       <div class="stack" style="gap:10px"><div class="mascot-dock"><button class="ask-dock" type="button" data-action="ask-open"><b>May tanong?</b><span>Ask Kuya Silong</span></button></div><button class="bal-pill block" type="button" data-go="wallet" aria-label="Payment and credit">${ic('wallet', 'sm')}<span>Credit</span><b class="num" data-balance>${peso(balance())}</b></button>
-      <div class="side-user"><div class="avatar" aria-hidden="true">${esc(initials(u.name))}</div><div><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div></div></div>
+      <div class="side-user"><div class="avatar" aria-hidden="true">${esc(initials(u.name))}</div><div><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div><button class="lang-mini notr" type="button" data-action="lang-toggle" aria-label="${I18N.lang === 'fil' ? 'Switch to English' : 'Lumipat sa Filipino'}">${I18N.lang === 'fil' ? 'EN' : 'FIL'}</button></div></div>
     </aside>
     <div style="min-width:0">
       <header class="top"><a class="brandmark" href="#home" data-go="home" aria-label="SILONG home"><img src="img/5f47a2806a.png" alt="SILONG" width="900" height="467"></a>
-        <div class="row" style="gap:8px;flex-wrap:nowrap"><button class="ask-top" type="button" data-action="ask-open" aria-label="Ask Kuya Silong">${ic('chat')}</button><button class="bal-pill" type="button" data-go="wallet" aria-label="My balance">${ic('wallet', 'sm')}<b class="num" data-balance>${peso(balance())}</b></button>
+        <div class="row" style="gap:8px;flex-wrap:nowrap"><button class="lang-mini notr" type="button" data-action="lang-toggle" aria-label="${I18N.lang === 'fil' ? 'Switch to English' : 'Lumipat sa Filipino'}">${I18N.lang === 'fil' ? 'EN' : 'FIL'}</button><button class="ask-top" type="button" data-action="ask-open" aria-label="Ask Kuya Silong">${ic('chat')}</button><button class="bal-pill" type="button" data-go="wallet" aria-label="My balance">${ic('wallet', 'sm')}<b class="num" data-balance>${peso(balance())}</b></button>
         <button class="avatar" type="button" data-go="account" aria-label="My account">${esc(initials(u.name))}</button></div></header>
       <main id="main" tabindex="-1"><div id="view-host"></div></main>
     </div>
@@ -2217,7 +2552,7 @@ function buildShell() {
 function renderView(keepScroll) {
   const host = $('#view-host'); if (!host) return;
   const y = window.scrollY;
-  S.map = null;
+  S.map = null; (S.lmaps || []).forEach((m) => { try { m.remove(); } catch (e) { /* already gone */ } }); S.lmaps = [];
   host.innerHTML = VIEWS[S.route]();
   const a = activeRental(); S.lastStatus = a ? statusOf(a) : null;
   $$('[data-nav]').forEach((el) => {
@@ -2242,6 +2577,9 @@ function selectKiosk(id, fromMap) {
 /* ------------------------------ 6. ROUTING + EVENTS ------------------------------ */
 function route() {
   S.user = Auth.current();
+  /* a printed SILONG QR opens the site at #scan=A: remember the machine, then offer to unlock it */
+  const scan = /^#scan=([a-z])$/i.exec(location.hash);
+  if (scan && kiosk(scan[1].toUpperCase())) { S.pendingScan = scan[1].toUpperCase(); Stats.event('qr_link'); history.replaceState(null, '', S.user ? '#home' : '#welcome'); }
   const r = location.hash.replace('#', '');
   if (!S.user) {
     if (!['welcome', 'login', 'register'].includes(r)) { history.replaceState(null, '', '#welcome'); return renderAuth('welcome'); }
@@ -2251,6 +2589,7 @@ function route() {
   else S.route = r;
   if (!S.shell || !$('#view-host')) buildShell();
   renderView(); window.scrollTo(0, 0);
+  if (S.pendingScan) { const id = S.pendingScan; S.pendingScan = null; setTimeout(() => scannedAt(id), 350); }
 }
 function navigate(id) {
   if (location.hash === '#' + id) route(); else location.hash = id;
@@ -2266,7 +2605,7 @@ async function handleForm(form) {
     const t = $('#rg-terms').checked; setErr('rg-terms', t ? '' : 'Please agree to the Terms and Conditions to continue.');
     if (Object.values(e).some(Boolean) || !t) { const f = $('[aria-invalid="true"]', form); if (f) f.focus(); return; }
     btn.disabled = true;
-    try { S.user = await Auth.register({ name: val('rg-name').trim(), email: val('rg-email').trim(), mobile: normMobile(val('rg-mobile')), password: val('rg-pass') }); toast('Account created. Welcome to SILONG!'); navigate('home'); }
+    try { S.user = await Auth.register({ name: val('rg-name').trim(), email: val('rg-email').trim(), mobile: normMobile(val('rg-mobile')), password: val('rg-pass') }); Stats.event('signup'); toast('Account created. Welcome to SILONG!'); navigate('home'); }
     catch (err) { $('#rg-form-err').textContent = err.message; btn.disabled = false; }
   } else if (kind === 'login') {
     const e = { 'lg-email': V.email(val('lg-email')), 'lg-pass': val('lg-pass') ? '' : 'Enter your password.' };
@@ -2290,7 +2629,10 @@ async function handleForm(form) {
     if (Object.values(e).some(Boolean)) { $('[aria-invalid="true"]', form).focus(); return; }
     const ref = 'DEMO-' + uid().slice(0, 6).toUpperCase();
     Support.submit({ ref, userId: S.user.id, name: val('sp-name'), email: val('sp-email'), category: val('sp-cat'), txRef: val('sp-ref'), message: val('sp-msg'), at: Date.now() });
-    $('#sp-done').innerHTML = `<div class="notice">${ic('check', 'sm')}<span><b>Saved on this device (${ref}).</b> This is a demo. Your message has not been sent to the SILONG support team because no support system is connected yet.</span></div>`;
+    const sent = Cloud.on ? await Cloud.ticket({ name: val('sp-name'), email: val('sp-email'), category: val('sp-cat'), txRef: val('sp-ref'), message: val('sp-msg') }).catch(() => false) : false;
+    $('#sp-done').innerHTML = sent
+      ? `<div class="notice">${ic('check', 'sm')}<span><b>Sent to the SILONG team (${ref}).</b> We’ll reply to ${esc(val('sp-email'))}.</span></div>`
+      : `<div class="notice">${ic('check', 'sm')}<span><b>Saved on this device (${ref}).</b> This is a demo. Your message has not been sent to the SILONG support team because no support system is connected yet.</span></div>`;
     $('#sp-msg').value = ''; $('#sp-ref').value = ''; S.topic = '';
   }
 }
@@ -2312,12 +2654,14 @@ document.addEventListener('click', async (e) => {
     case 'open-terms': e.preventDefault(); openModal({ label: 'Terms and Conditions', html: `<div class="modal-head"><h2>Terms and Conditions</h2><button class="icon-btn" type="button" data-close aria-label="Close">${ic('x')}</button></div>${termsBody(false)}` }); break;
     case 'more':
       openModal({ label: 'More', html: `<div class="modal-head"><h2>More</h2><button class="icon-btn" type="button" data-close aria-label="Close">${ic('x')}</button></div>
-        <div class="more-list">${['wallet', 'rates', 'how', 'terms', 'support'].map((id) => { const n = NAV.find((x) => x.id === id); return `<button type="button" data-go="${id}">${ic(n.icon)}${n.label}</button>`; }).join('')}<button type="button" data-action="ask-open">${ic('chat')}Ask Kuya Silong</button></div>` }); break;
+        <div class="more-list">${['wallet', 'rates', 'how', 'terms', 'support'].map((id) => { const n = NAV.find((x) => x.id === id); return `<button type="button" data-go="${id}">${ic(n.icon)}${n.label}</button>`; }).join('')}<button type="button" data-action="ask-open">${ic('chat')}Ask Kuya Silong</button><button type="button" class="notr" data-action="lang-toggle">${ic('globe')}${I18N.lang === 'fil' ? 'English' : 'Filipino'}</button></div>` }); break;
     case 'logout':
       if (await confirmDialog({ title: 'Log out of SILONG?', body: '<p>You can log back in anytime with your email and password.</p>', confirm: 'Log out' })) { Auth.logout(); S.user = null; S.shell = false; navigate('welcome'); }
       break;
     case 'delete-account':
-      if (await confirmDialog({ title: 'Delete your account?', danger: true, confirm: 'Delete account', body: '<p>This removes your demo account and rental records from this browser. It cannot be undone.</p>' })) { Auth.remove(S.user.id); S.user = null; S.shell = false; toast('Account deleted.'); navigate('welcome'); }
+      if (await confirmDialog({ title: 'Delete your account?', danger: true, confirm: 'Delete account', body: '<p>' + ((Cloud.on && (Auth.users().find((x) => x.id === S.user.id) || {}).cloud) ? 'This deletes your account, your rentals and your support messages from SILONG. It cannot be undone.' : 'This removes your demo account and rental records from this browser. It cannot be undone.') + '</p>' })) {
+        if (Cloud.on && (Auth.users().find((x) => x.id === S.user.id) || {}).cloud) { try { await Cloud.removeMe(); } catch (err) { toast(err.message); break; } }
+        Auth.remove(S.user.id); S.user = null; S.shell = false; toast('Account deleted.'); navigate('welcome'); }
       break;
     case 'mascot-toggle': Mascot.set(!Mascot.on()); t.textContent = Mascot.on() ? 'Hide' : 'Show'; if (Mascot.on()) Mascot.say('Mabuhay!'); break;
     case 'home-pin': S.sel = d.id; location.hash = '#locations'; break;
@@ -2328,11 +2672,23 @@ document.addEventListener('click', async (e) => {
     }
     case 'ask-open': e.preventDefault(); openHelper(); break;
     case 'ask-chip': askSend(d.q); break;
+    case 'scan-camera': openScanner(); break;
+    case 'locate': if (S.map && S.map.locate) S.map.locate(); else toast('The map is still loading. Try again in a moment.'); break;
+    case 'lang-toggle': I18N.set(I18N.lang === 'fil' ? 'en' : 'fil'); break;
+    case 'lang-set': I18N.set(d.lang); break;
+    case 'alerts-toggle': {
+      if (Alerts.on()) { await Alerts.disable(); toast('Alerts are off.'); }
+      else if (await Alerts.enable()) toast('Alerts are on. You’ll get a heads-up before rain or strong sun.');
+      renderView(true); break;
+    }
     case 'try-demo': {
       t.disabled = true; const n = uid();
-      try { S.user = await Auth.register({ name: 'Guest', email: 'guest-' + n + '@demo.silong.ph', mobile: '09170000000', password: 'demo-' + n + '-1' }); }
-      catch (err) { t.disabled = false; toast('Could not start the demo. Try again.'); break; }
-      toast('You’re in. This demo account lives on this device only.'); navigate('home'); break;
+      try {
+        S.user = Cloud.on ? await Cloud.demo().catch(() => null) : null;   /* a guest account in the database, if accounts are connected */
+        if (!S.user) S.user = await Auth.registerLocal({ name: 'Guest', email: 'guest-' + n + '@demo.silong.ph', mobile: '09170000000', password: 'demo-' + n + '-1' });
+      } catch (err) { t.disabled = false; toast('Could not start the demo. Try again.'); break; }
+      Stats.event('demo_start');
+      toast(Cloud.on ? 'You’re in. This is a demo account.' : 'You’re in. This demo account lives on this device only.'); navigate('home'); break;
     }
     case 'change-pay': toast('Demo only: Maya and card linking are not connected in this prototype.'); break;
     case 'notify': {
@@ -2343,10 +2699,7 @@ document.addEventListener('click', async (e) => {
     case 'show-kiosk': selectKiosk(d.id); $('#map-host') && $('#map-host').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); break;
     case 'start-demo': {
       const m = $('.modal'), k = ($('input[name="kiosk"]:checked', m) || {}).value || 'A';
-      const rental = Rentals.start(S.user.id, { planId: '24h', kioskId: k });
-      Rentals.update(S.user.id, rental.id, (x) => { x.payg = true; x.label = 'Pay as you go'; x.price = 0; });
-      S.pickKiosk = null; closeModal(true);
-      toast('Umbrella unlocked at Silongan ' + k + ' (demo). The meter is running.'); navigate('rentals'); break;
+      S.pickKiosk = null; closeModal(true); unlockAt(k); break;
     }
     case 'skip': {
       const r = activeRental(); if (!r) break;
@@ -2363,7 +2716,7 @@ document.addEventListener('click', async (e) => {
         const used = nowOf(r) - r.startedAt, cost = paygCost(used);
         const ok = await confirmDialog({ title: 'Return the umbrella?', confirm: 'Simulate return',
           body: `<p>You had it for <b>${fmtDurShort(used)}</b>. <b>${pesoW(cost)}</b> will be charged to ${payLabel()}.</p><p class="muted small">Demo: no RFID scan happens and nothing is charged.</p>` });
-        if (ok) { Rentals.update(S.user.id, r.id, (x) => { x.returnedAt = nowOf(x); x.price = cost; x.lateFee = 0; x.feeSettled = true; }); toast(pesoW(cost) + ' charged to ' + payLabel() + ' (demo). Salamat!'); renderView(true); }
+        if (ok) { Stats.event('rental_return'); Rentals.update(S.user.id, r.id, (x) => { x.returnedAt = nowOf(x); x.price = cost; x.lateFee = 0; x.feeSettled = true; }); toast(pesoW(cost) + ' charged to ' + payLabel() + ' (demo). Salamat!'); renderView(true); }
         break;
       }
       const lateMin = Math.max(0, Math.ceil((nowOf(r) - endOf(r)) / 60000)), fee = lateFee(lateMin);
@@ -2426,67 +2779,89 @@ const askFace = () => `<span class="ask-face" aria-hidden="true">${Mascot.svg}</
 const askGo = (id, label) => `<a class="btn secondary sm" href="#${id}" data-go="${id}">${label}</a>`;
 function askChips() {
   const r = S.user ? activeRental() : null;
-  return [r ? 'How much do I owe now?' : 'How do I rent an umbrella?', 'How much for 2 hours?', 'Where is the nearest Silongan?', 'Will it rain today?', 'What if I lose it?', 'Can I pay with cash?']
-    .map((q) => `<button class="ask-chip" type="button" data-action="ask-chip" data-q="${esc(q)}">${esc(q)}</button>`).join('');
+  const qs = [r ? ['How much do I owe now?', 'Magkano na ang utang ko?'] : ['How do I rent an umbrella?', 'Paano magrenta ng payong?'], ['How much for 2 hours?', 'Magkano para sa 2 oras?'],
+    ['Where is the nearest Silongan?', 'Saan ang pinakamalapit na Silongan?'], ['Will it rain today?', 'Uulan ba ngayon?'], ['What if I lose it?', 'Paano kung mawala ko?'], ['Can I pay with cash?', 'Puwede bang cash?']];
+  return qs.map(([en, tl]) => { const q = bi(en, tl); return `<button class="ask-chip" type="button" data-action="ask-chip" data-q="${esc(q)}">${esc(q)}</button>`; }).join('');
 }
 function askWeather() {
   const d = Wx.data;
-  if (Wx.status !== 'ok' || !d) { loadWeather(); return 'I can’t reach the weather service right now. Try again in a minute, or check Today in BGC on the Home page.'; }
-  const rain = d.pop != null ? `, with a ${d.pop}% chance of rain today` : '';
-  const tip = d.pop != null && d.pop >= 40 ? ' Rain is likely, so grab an umbrella at a Silongan.'
-    : d.uv != null && d.uv >= 6 ? ` Strong sun though (UV peak ${Math.round(d.uv)}), and an umbrella doubles as shade.`
-    : ' Looks fine, but the Silongans are there if the sky changes its mind.';
-  return `Right now it’s ${Math.round(d.temp)}°C in BGC and ${wxDescribe(d.code)[0].toLowerCase()}${rain}.${tip}`;
+  if (Wx.status !== 'ok' || !d) { loadWeather(); return bi('I can’t reach the weather service right now. Try again in a minute, or check Today in BGC on the Home page.', 'Hindi ko maabot ang weather service ngayon. Subukan ulit mamaya, o tingnan ang Ngayon sa BGC sa Home.'); }
+  const sky = tr(wxDescribe(d.code)[0]).toLowerCase(), uv = d.uv != null ? Math.round(d.uv) : null;
+  const rain = d.pop != null ? bi(`, with a ${d.pop}% chance of rain today`, `, may ${d.pop}% tsansa ng ulan ngayong araw`) : '';
+  const tip = d.pop != null && d.pop >= 40 ? bi(' Rain is likely, so grab an umbrella at a Silongan.', ' Malamang umulan, kaya kumuha ng payong sa isang Silongan.')
+    : uv != null && uv >= 6 ? bi(` Strong sun though (UV peak ${uv}), and an umbrella doubles as shade.`, ` Pero matindi ang araw (UV peak ${uv}), at panangga rin sa init ang payong.`)
+    : bi(' Looks fine, but the Silongans are there if the sky changes its mind.', ' Mukhang maayos, pero nandiyan ang mga Silongan kung magbago ang panahon.');
+  return bi(`Right now it’s ${Math.round(d.temp)}°C in BGC and ${sky}${rain}.${tip}`, `Ngayon ay ${Math.round(d.temp)}°C sa BGC at ${sky}${rain}.${tip}`);
 }
 function askAnswer(raw) {
   const q = ' ' + String(raw).toLowerCase().replace(/(\d)[.,](\d)/g, '$1§$2').replace(/[^\p{L}\p{N}₱§]+/gu, ' ').trim().replace(/§/g, '.') + ' ';
   const has = (...w) => w.some((x) => q.includes(x));
   const r = S.user ? activeRental() : null;
-  if (has(' owe ', ' so far ', 'my rental', 'current charge', 'how long have i', 'magkano na', 'utang', 'my umbrella')) {
-    if (!r) return `You don’t have an umbrella out right now. Scan the QR at any Silongan to start.<div>${askGo('locations', 'Find a Silongan')}</div>`;
+  const go = (id, en, tl) => askGo(id, bi(en, tl));
+  if (has(' owe ', ' so far ', 'my rental', 'current charge', 'how long have i', 'magkano na', 'utang', 'my umbrella', 'payong ko', 'singil ko')) {
+    if (!r) return bi('You don’t have an umbrella out right now. Scan the QR at any Silongan to start.', 'Wala kang hiniram na payong ngayon. I-scan ang QR sa kahit anong Silongan para magsimula.') + `<div>${go('locations', 'Find a Silongan', 'Maghanap ng Silongan')}</div>`;
     const used = nowOf(r) - r.startedAt;
-    return r.payg ? `You’ve had it for <b>${fmtDurShort(used)}</b>: ${paygQuote(used).sub}. Return it to any Silongan and that’s what you pay.<div>${askGo('rentals', 'My rentals')}</div>`
-      : `${cdInfo(r).main}, ${cdInfo(r).sub}.<div>${askGo('rentals', 'My rentals')}</div>`;
+    return (r.payg ? bi(`You’ve had it for <b>${fmtDurShort(used)}</b>: ${paygQuote(used).sub}. Return it to any Silongan and that’s what you pay.`, `<b>${fmtDurShort(used)}</b> mo na itong hawak: ${paygQuote(used).sub}. Ibalik sa kahit anong Silongan at iyan ang babayaran mo.`)
+      : `${cdInfo(r).main}, ${cdInfo(r).sub}.`) + `<div>${go('rentals', 'My rentals', 'Aking mga renta')}</div>`;
   }
-  const m = q.match(/ (\d+(?:\.\d+)?) ?(minutes?|mins?|hours?|hrs?|h|oras|days?|araw) /);
+  const m = q.match(/ (\d+(?:\.\d+)?) ?(minutes?|mins?|minuto|hours?|hrs?|h|oras|days?|araw) /);
   if (m) {
-    const n = parseFloat(m[1]), unit = m[2];
-    const mins = /^min/.test(unit) ? n : /^(day|araw)/.test(unit) ? n * 1440 : n * 60, cost = paygCost(mins * 60000);
-    return `For ${m[1]} ${unit} it’s <b>${pesoW(cost)}</b>${cost >= CAP ? ', the maximum, so the umbrella would be yours to keep' : ''}. You pay once, when you return it, for the time you actually used.<div>${askGo('rates', 'See all prices')}</div>`;
+    const n = parseFloat(m[1]), unit = m[2], isMin = /^min/.test(unit), isDay = /^(day|araw)/.test(unit);
+    const cost = paygCost((isMin ? n : isDay ? n * 1440 : n * 60) * 60000), tl = isMin ? 'minuto' : isDay ? 'araw' : 'oras';
+    return bi(`For ${m[1]} ${unit} it’s <b>${pesoW(cost)}</b>${cost >= CAP ? ', the maximum, so the umbrella would be yours to keep' : ''}. You pay once, when you return it, for the time you actually used.`,
+      `Para sa ${m[1]} ${tl}, <b>${pesoW(cost)}</b>${cost >= CAP ? ', ang pinakamataas na singil, kaya sa iyo na ang payong' : ''}. Isang beses ka lang sisingilin, pagbalik mo, para sa oras na talagang ginamit mo.`) + `<div>${go('rates', 'See all prices', 'Lahat ng presyo')}</div>`;
   }
   if (has('didn t', 'did not', 'didnt', 'walang lumabas', 'no umbrella came', 'not release', 'stuck', 'failed', ' error'))
-    return `If you scanned and no umbrella came out, nothing is charged. If you see a charge anyway, send the reference number to customer support and it’s refunded to your linked payment.<div>${askGo('support', 'Customer support')}</div>`;
-  if (has('lost', ' lose ', 'nawala', 'stolen', 'nanakaw', 'broken', ' broke', 'damage', 'sira', 'torn', 'punit'))
-    return `If you lose it, the most you’ll ever pay is <b>₱225</b> in total, the price of the umbrella. There’s no extra lost-umbrella fee. If it breaks, report it in the app: dirt is free, small repairs ₱50, bigger damage up to ₱150, and normal wear and tear is never charged.<div>${askGo('terms', 'Damage charges')} ${askGo('support', 'Report it')}</div>`;
+    return bi('If you scanned and no umbrella came out, nothing is charged. If you see a charge anyway, send the reference number to customer support and it’s refunded to your linked payment.',
+      'Kung nag-scan ka pero walang lumabas na payong, wala kang babayaran. Kung may singil pa rin, ipadala ang reference number sa customer support at ibabalik ito sa naka-link mong payment.') + `<div>${go('support', 'Customer support', 'Customer support')}</div>`;
+  if (has('lost', ' lose ', 'nawala', 'mawala', 'stolen', 'nanakaw', 'broken', ' broke', 'damage', 'sira', 'torn', 'punit'))
+    return bi('If you lose it, the most you’ll ever pay is <b>₱225</b> in total, the price of the umbrella. There’s no extra lost-umbrella fee. If it breaks, report it in the app: dirt is free, small repairs ₱50, bigger damage up to ₱150, and normal wear and tear is never charged.',
+      'Kung mawala mo ito, <b>₱225</b> lang ang pinakamalaking babayaran mo, ang presyo ng payong. Walang dagdag na multa. Kung masira, i-report sa app: libre ang dumi, ₱50 ang maliit na sira, hanggang ₱150 ang malaking sira, at hindi sinisingil ang normal na pagkaluma.')
+      + `<div>${go('terms', 'Damage charges', 'Singil sa sira')} ${go('support', 'Report it', 'I-report')}</div>`;
   if (has(' late', 'longer', 'keep it', 'overdue', 'extend', 'week', 'several days', 'huli', 'tagal'))
-    return `There’s no late fee. You keep paying for the time, at most <b>₱40 a day</b>, and the charge stops at <b>₱225</b>, the price of the umbrella. At that point it’s yours to keep.<div>${askGo('rates', 'See prices')}</div>`;
+    return bi('There’s no late fee. You keep paying for the time, at most <b>₱40 a day</b>, and the charge stops at <b>₱225</b>, the price of the umbrella. At that point it’s yours to keep.',
+      'Walang late fee. Tuloy lang ang bayad ayon sa oras, hanggang <b>₱40 kada araw</b>, at titigil ang singil sa <b>₱225</b>, ang presyo ng payong. Pagdating doon, sa iyo na ito.') + `<div>${go('rates', 'See prices', 'Tingnan ang presyo')}</div>`;
   if (has('cash', 'coin', 'barya', 'gcash', 'maya', ' card', 'debit', 'pay with', 'how do i pay', 'how to pay', 'magbayad', 'payment method'))
-    return `You pay through the app with <b>GCash, Maya or a debit or credit card</b>, linked once. The machine takes no cash or coins, which is what lets you return it anywhere and pay only for the time you used.<div>${askGo('wallet', 'Payment')}</div>`;
+    return bi('You pay through the app with <b>GCash, Maya or a debit or credit card</b>, linked once. The machine takes no cash or coins, which is what lets you return it anywhere and pay only for the time you used.',
+      'Sa app ka magbabayad gamit ang <b>GCash, Maya, o debit o credit card</b>, na isang beses lang i-li-link. Walang cash o barya sa makina, kaya puwede mo itong ibalik kahit saan at magbayad lang para sa oras na ginamit mo.') + `<div>${go('wallet', 'Payment', 'Bayad')}</div>`;
   if (has('how much', 'magkano', 'price', 'cost', ' rate', ' fee', 'presyo', 'singil', '₱', 'expensive', 'mahal'))
-    return `You pay for the time you use: <b>₱15</b> the first hour, <b>₱20</b> up to 3 hours, <b>₱25</b> up to 6 hours, and <b>₱40</b> for a whole day. Never more than ₱40 a day, and never more than ₱225 in total.<div>${askGo('rates', 'See prices')}</div>`;
+    return bi('You pay for the time you use: <b>₱15</b> the first hour, <b>₱20</b> up to 3 hours, <b>₱25</b> up to 6 hours, and <b>₱40</b> for a whole day. Never more than ₱40 a day, and never more than ₱225 in total.',
+      'Babayaran mo lang ang oras na ginamit mo: <b>₱15</b> sa unang oras, <b>₱20</b> hanggang 3 oras, <b>₱25</b> hanggang 6 na oras, at <b>₱40</b> sa buong araw. Hindi lalampas sa ₱40 kada araw, at hindi lalampas sa ₱225 sa kabuuan.')
+      + `<div>${go('rates', 'See prices', 'Tingnan ang presyo')}</div>`;
   if (has('return', 'ibalik', 'ibabalik', 'balik', 'drop off', 'give back'))
-    return `Return it to <b>any</b> Silongan, not just the one you took it from. Slot it in, wait for the machine to confirm, and you’re charged once for the time you used.<div>${askGo('locations', 'See all Silongans')}</div>`;
-  if (has(' rent', 'borrow', 'hiram', 'paano', 'how do i', 'how to', 'get an umbrella', 'get one', ' scan', ' qr', 'unlock'))
-    return `Easy: find a Silongan, scan the QR code on the machine with this app, and take the umbrella that unlocks. No plan to pick. Return it to any Silongan when you’re done.<div>${askGo('locations', 'Find a Silongan')} ${askGo('how', 'How it works')}</div>`;
-  if (has('where', 'saan', 'nasaan', 'location', 'nearest', 'malapit', ' near', 'machine', 'silongan', ' map', 'bgc', 'high street'))
-    return `There are 3 Silongans in BGC, all around Bonifacio High Street:<ul class="ask-list">${KIOSKS.map((k) => `<li><b>Silongan ${k.id}</b>: ${esc(k.title)}</li>`).join('')}</ul><div>${askGo('locations', 'Open the map')}</div>`;
-  if (has('hours', ' open', 'bukas', 'close', 'sarado', 'stock', 'available', 'how many umbrellas', 'ilan'))
-    return `Opening hours and live umbrella stock aren’t connected yet in this prototype. Once the machines are linked, each Silongan will show both.<div>${askGo('locations', 'Silongan details')}</div>`;
+    return bi('Return it to <b>any</b> Silongan, not just the one you took it from. Slot it in, wait for the machine to confirm, and you’re charged once for the time you used.',
+      'Ibalik ito sa <b>kahit anong</b> Silongan, hindi lang sa pinagkunan mo. Isuksok ito, hintaying kumpirmahin ng makina, at isang beses ka lang sisingilin para sa oras na ginamit mo.') + `<div>${go('locations', 'See all Silongans', 'Lahat ng Silongan')}</div>`;
+  if (has(' rent', 'borrow', 'hiram', 'paano', 'magrenta', 'umupa', 'how do i', 'how to', 'get an umbrella', 'get one', ' scan', ' qr', 'unlock'))
+    return bi('Easy: find a Silongan, scan the QR code on the machine with this app, and take the umbrella that unlocks. No plan to pick. Return it to any Silongan when you’re done.',
+      'Madali lang: maghanap ng Silongan, i-scan ang QR code sa makina gamit ang app na ito, at kunin ang payong na lalabas. Walang plan na pipiliin. Ibalik ito sa kahit anong Silongan pagkatapos.')
+      + `<div>${go('locations', 'Find a Silongan', 'Maghanap ng Silongan')} ${go('how', 'How it works', 'Paano ito gumagana')}</div>`;
   if (has('rain', 'ulan', 'weather', 'panahon', ' sun', ' init', ' hot ', ' uv', 'heat', 'mainit', 'bagyo', 'storm', 'typhoon'))
-    return `${askWeather()}<div>${askGo('home', 'Today in BGC')}</div>`;
+    return `${askWeather()}<div>${go('home', 'Today in BGC', 'Ngayon sa BGC')}</div>`;
+  if (has('hours', ' open', 'bukas', 'close', 'sarado', 'stock', 'available', 'how many umbrellas', ' ilan '))
+    return bi('Opening hours and live umbrella stock aren’t connected yet in this prototype. Once the machines are linked, each Silongan will show both.',
+      'Hindi pa konektado sa prototype na ito ang oras ng bukas at ang bilang ng payong. Kapag naka-link na ang mga makina, makikita mo pareho sa bawat Silongan.') + `<div>${go('locations', 'Silongan details', 'Detalye ng Silongan')}</div>`;
+  if (has('where', 'saan', 'nasaan', 'location', 'nearest', 'malapit', ' near', 'machine', 'makina', 'silongan', ' map', 'mapa', 'bgc', 'high street'))
+    return bi('There are 3 Silongans in BGC, all around Bonifacio High Street:', 'May 3 Silongan sa BGC, lahat malapit sa Bonifacio High Street:')
+      + `<ul class="ask-list">${KIOSKS.map((k) => `<li><b>Silongan ${k.id}</b>: ${esc(k.title)}</li>`).join('')}</ul>`
+      + bi('The map can also find the one nearest you.', 'Kaya rin ng mapa na hanapin ang pinakamalapit sa iyo.') + `<div>${go('locations', 'Open the map', 'Buksan ang mapa')}</div>`;
   if (has('account', 'password', 'delete', 'privacy', ' data', 'email', 'mobile number', 'log out', 'logout'))
-    return `You can change your name, email, mobile number and password in My Account, or delete the account there. SILONG uses your details only to run your rentals.<div>${askGo('account', 'My Account')}</div>`;
+    return bi('You can change your name, email, mobile number and password in My Account, or delete the account there. SILONG uses your details only to run your rentals.',
+      'Mapapalitan mo ang pangalan, email, mobile number, at password sa My Account, at doon mo rin mabubura ang account. Ginagamit lang ng SILONG ang detalye mo para sa mga renta mo.') + `<div>${go('account', 'My Account', 'My Account')}</div>`;
   if (has('who are you', 'sino ka', 'kuya silong', 'are you a bot', 'are you ai', ' ai ', 'robot'))
-    return `Ako si Kuya Silong, SILONG’s helper. I answer from SILONG’s help pages and your demo rental, right here on your device. For anything I can’t answer, customer support can help.<div>${askGo('support', 'Customer support')}</div>`;
+    return bi('Ako si Kuya Silong, SILONG’s helper. I answer from SILONG’s help pages and your demo rental, right here on your device. For anything I can’t answer, customer support can help.',
+      'Ako si Kuya Silong, ang katulong ng SILONG. Sumasagot ako mula sa help pages ng SILONG at sa demo rental mo, dito mismo sa device mo. Kung hindi ko masagot, makakatulong ang customer support.') + `<div>${go('support', 'Customer support', 'Customer support')}</div>`;
   if (has(' real ', 'demo', 'prototype', 'fake', 'simulat', ' test '))
-    return 'This is a prototype: rentals, payments and the machines are simulated. No money moves and no umbrella is released, so try anything you like.';
+    return bi('This is a prototype: rentals, payments and the machines are simulated. No money moves and no umbrella is released, so try anything you like.',
+      'Prototype ito: simulated ang mga renta, bayad, at makina. Walang perang gumagalaw at walang payong na lumalabas, kaya subukan mo lahat.');
   if (has('thank', 'salamat', ' ty '))
     return 'Walang anuman! Ingat sa ulan, at sa init din.';
   if (has(' hi ', ' hello ', ' hey ', 'kumusta', 'musta', 'magandang', 'good morning', 'good afternoon', 'good evening'))
-    return 'Mabuhay! Ako si Kuya Silong. Ask me about prices, renting, returns, lost umbrellas or the weather.';
+    return bi('Mabuhay! Ako si Kuya Silong. Ask me about prices, renting, returns, lost umbrellas or the weather.', 'Mabuhay! Ako si Kuya Silong. Magtanong ka tungkol sa presyo, pag-renta, pagbabalik, nawawalang payong, o panahon.');
   if (has('support', 'contact', 'human', 'agent', 'complain', 'refund', 'problem', 'issue', 'tulong', 'help'))
-    return `Customer support can help with payments, refunds, machine problems and anything else. Send a message from the support page.<div>${askGo('support', 'Customer support')}</div>`;
-  return `Hmm, hindi ko pa alam ’yan. I can help with prices, renting, returns, lost umbrellas, the Silongan locations and the weather. For anything else, customer support can help.<div>${askGo('support', 'Customer support')}</div>`;
+    return bi('Customer support can help with payments, refunds, machine problems and anything else. Send a message from the support page.',
+      'Matutulungan ka ng customer support sa bayad, refund, problema sa makina, at iba pa. Magpadala ng mensahe mula sa support page.') + `<div>${go('support', 'Customer support', 'Customer support')}</div>`;
+  return bi('Hmm, hindi ko pa alam ’yan. I can help with prices, renting, returns, lost umbrellas, the Silongan locations and the weather. For anything else, customer support can help.',
+    'Hmm, hindi ko pa alam ’yan. Matutulungan kita sa presyo, pag-renta, pagbabalik, nawawalang payong, mga lokasyon ng Silongan, at panahon. Para sa iba pa, nandiyan ang customer support.') + `<div>${go('support', 'Customer support', 'Customer support')}</div>`;
 }
 function askRender() {
   const log = $('#ask-log'); if (!log) return;
@@ -2497,12 +2872,13 @@ function askRender() {
 }
 function askSend(text) {
   const q = String(text || '').trim().slice(0, 200); if (!q) return;
-  Ask.log.push({ me: true, text: q }, { html: '<span class="ask-typing">Kuya Silong is typing…</span>', typing: true });
-  askRender();
+  Ask.log.push({ me: true, text: q }, { html: `<span class="ask-typing">${bi('Kuya Silong is typing…', 'Nagta-type si Kuya Silong…')}</span>`, typing: true });
+  askRender(); Stats.event('ask');
   setTimeout(() => { Ask.log = Ask.log.filter((x) => !x.typing); Ask.log.push({ html: askAnswer(q) }); askRender(); }, calm() ? 0 : 450);
 }
 function openHelper() {
-  if (!Ask.log.length) Ask.log.push({ html: `Mabuhay${S.user ? ', ' + esc(S.user.name.trim().split(/\s+/)[0]) : ''}! Ako si Kuya Silong. Ask me anything about renting an umbrella, or tap a question below.` });
+  const first = S.user ? ', ' + esc(S.user.name.trim().split(/\s+/)[0]) : '';
+  if (!Ask.log.length) Ask.log.push({ html: bi(`Mabuhay${first}! Ako si Kuya Silong. Ask me anything about renting an umbrella, or tap a question below.`, `Mabuhay${first}! Ako si Kuya Silong. Magtanong ka tungkol sa pag-renta ng payong, o pumili ng tanong sa ibaba.`) });
   /* on touch screens, don't pop the keyboard open before they've seen the suggested questions */
   const focusInput = matchMedia('(hover: hover)').matches ? 'data-autofocus' : '';
   openModal({ label: 'Ask Kuya Silong', html: `
@@ -2608,7 +2984,10 @@ setInterval(() => {
 }, 1000);
 
 Mascot.init();
-route();
+/* Load the chosen language and (if connected) the account first, so the first screen is already right. */
+Promise.all([I18N.init(), Cloud.init()]).catch(() => {}).finally(() => { route(); Stats.event('visit'); Alerts.sync(); Alerts.check(); });
+/* Offline support and instant repeat visits */
+if ('serviceWorker' in navigator && isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => { /* offline mode unavailable */ });
 })();
 
 </script>

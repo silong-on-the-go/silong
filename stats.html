@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>SILONG demo stats</title>
+<link rel="icon" type="image/png" href="img/2724515ba7.png">
+<style>
+  :root { color-scheme: light dark; --bg: #f2f5fa; --surface: #fff; --ink: #0a1f3b; --ink-2: #4a5b75; --line: #dbe3ee; --bar: #1b6fd1; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #08111f; --surface: #0f1d33; --ink: #e8f0fb; --ink-2: #9fb2cd; --line: #21385a; --bar: #7db4ff; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--ink); }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 24px 20px 48px; display: grid; gap: 20px; }
+  header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  header img { height: 52px; width: auto; }
+  h1 { margin: 0; font-size: 1.5rem; }
+  .sub { margin: 2px 0 0; color: var(--ink-2); }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+  .card h2 { margin: 0 0 6px; font-size: .85rem; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; }
+  .big { font-size: 2.2rem; font-weight: 800; line-height: 1.1; }
+  .small { color: var(--ink-2); font-size: .9rem; }
+  .bars { display: flex; align-items: flex-end; gap: 6px; height: 160px; padding-top: 10px; }
+  .bars div { flex: 1; display: grid; justify-items: center; align-content: end; gap: 4px; height: 100%; }
+  .bars i { display: block; width: 100%; max-width: 34px; background: var(--bar); border-radius: 6px 6px 2px 2px; min-height: 2px; }
+  .bars b { font-size: .7rem; } .bars span { font-size: .65rem; color: var(--ink-2); }
+  .split { display: flex; height: 14px; border-radius: 7px; overflow: hidden; margin: 8px 0; background: var(--line); }
+  .split i:nth-child(1) { background: #ffb720; } .split i:nth-child(2) { background: #238a3e; } .split i:nth-child(3) { background: #1b6fd1; }
+  a { color: var(--bar); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><img src="img/5f47a2806a.png" alt="SILONG"><div><h1>Demo stats</h1><p class="sub">Counts only. No cookies, no IP addresses, nothing about who visited.</p></div></header>
+  <div id="out" class="card">Loading…</div>
+</div>
+<script src="config.js"></script>
+<script>
+  const c = window.SILONG_CONFIG || {}, out = document.getElementById('out');
+  const n = (x) => Number(x || 0).toLocaleString('en-PH');
+  if (!c.SUPABASE_URL || !c.SUPABASE_KEY) {
+    out.innerHTML = '<b>The visit counter isn’t connected yet.</b><p class="small">Add the Supabase project URL and publishable key to config.js (see the README), and counting starts on the next visit.</p>';
+  } else {
+    const headers = { apikey: c.SUPABASE_KEY, 'Content-Type': 'application/json' };
+    if (c.SUPABASE_KEY.split('.').length === 3) headers.Authorization = 'Bearer ' + c.SUPABASE_KEY;
+    fetch(c.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/silong_stats', { method: 'POST', headers, body: '{}' })
+      .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then((s) => {
+        const T = s.totals || {}, D = s.today || {}, W = s.week || {}, dev = s.devices || {};
+        const card = (title, big, small) => `<div class="card"><h2>${title}</h2><div class="big">${big}</div><div class="small">${small}</div></div>`;
+        const devTotal = (dev.phone || 0) + (dev.tablet || 0) + (dev.desktop || 0) || 1, pct = (k) => Math.round((dev[k] || 0) * 100 / devTotal);
+        const days = (s.daily || []).slice(-14), max = Math.max(1, ...days.map((d) => d.visits));
+        out.className = '';
+        out.innerHTML = `<div class="grid">
+            ${card('Visits', n(T.visit), `${n(D.visit)} today · ${n(W.visit)} this week`)}
+            ${card('Tried the demo', n(T.demo_start), `${n(W.demo_start)} this week`)}
+            ${card('Accounts created', n(T.signup), `${n(W.signup)} this week`)}
+            ${card('Rentals started', n(T.rental_start), `${n(T.rental_return)} returned`)}
+            ${card('Questions for Kuya Silong', n(T.ask), `${n(W.ask)} this week`)}
+            ${card('QR scans', n((T.qr_scan || 0) + (T.qr_link || 0)), `${n(T.qr_scan)} in the app · ${n(T.qr_link)} with a phone camera`)}
+          </div>
+          <div class="card" style="margin-top:14px"><h2>Devices</h2><div class="split"><i style="width:${pct('phone')}%"></i><i style="width:${pct('tablet')}%"></i><i style="width:${pct('desktop')}%"></i></div>
+            <div class="small">Phones ${pct('phone')}% · Tablets ${pct('tablet')}% · Computers ${pct('desktop')}%</div></div>
+          <div class="card" style="margin-top:14px"><h2>Visits, last 14 days</h2>${days.length ? `<div class="bars">${days.map((d) => `<div><b>${d.visits}</b><i style="height:${Math.round(d.visits * 100 / max)}%"></i><span>${String(d.day).slice(5)}</span></div>`).join('')}</div>` : '<p class="small">No visits yet.</p>'}</div>`;
+      })
+      .catch((e) => { out.innerHTML = `<b>Couldn’t load the stats.</b><p class="small">${String(e.message || e)}. Check that supabase/setup.sql has been run in the project.</p>`; });
+  }
+</script>
+</body>
+</html>

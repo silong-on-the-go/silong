@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SILONG demo QR codes</title>
+<link rel="icon" type="image/png" href="img/2724515ba7.png">
+<style>
+  :root { color-scheme: light; --ink: #0a1f3b; --ink-2: #4a5b75; --line: #dbe3ee; --brand: #00407f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f2f5fa; color: var(--ink); }
+  header { max-width: 1100px; margin: 0 auto; padding: 28px 20px 8px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+  header img { height: 64px; width: auto; }
+  header h1 { margin: 0; font-size: 1.6rem; }
+  header p { margin: 4px 0 0; color: var(--ink-2); max-width: 60ch; }
+  .actions { margin-left: auto; display: flex; gap: 10px; }
+  button, .back { font: inherit; font-weight: 700; border-radius: 12px; padding: 10px 16px; border: 1px solid var(--line); background: #fff; color: var(--brand); cursor: pointer; text-decoration: none; }
+  button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px 20px 40px; display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .code { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 24px; display: grid; gap: 14px; justify-items: center; text-align: center; box-shadow: 0 10px 30px rgba(10, 31, 59, .08); }
+  .code .top { display: flex; align-items: center; gap: 12px; }
+  .code .top img { width: 48px; height: 48px; border-radius: 12px; }
+  .code h2 { margin: 0; font-size: 1.5rem; }
+  .code .qr { width: 100%; max-width: 300px; aspect-ratio: 1; }
+  .code .qr svg { width: 100%; height: 100%; display: block; }
+  .code .cta { font-weight: 800; font-size: 1.15rem; color: var(--brand); }
+  .code .addr { margin: 0; color: var(--ink-2); font-size: .92rem; }
+  .code .url { margin: 0; color: var(--ink-2); font-size: .75rem; word-break: break-all; }
+  .note { max-width: 1100px; margin: 0 auto; padding: 0 20px 40px; color: var(--ink-2); font-size: .9rem; }
+  @media print {
+    body { background: #fff; }
+    header .actions, .note { display: none; }
+    header { padding-top: 0; }
+    main { display: block; padding: 0; }
+    .code { box-shadow: none; border: 0; page-break-after: always; break-after: page; padding: 40px 0; }
+    .code .qr { max-width: 12cm; }
+    .code h2 { font-size: 2.4rem; }
+    .code .cta { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <img src="img/5f47a2806a.png" alt="SILONG">
+  <div><h1>Demo QR codes</h1><p>Print these, or show them on another screen. Scan one with any phone camera, or with Scan with camera in SILONG, and that Silongan’s umbrella unlocks in the demo.</p></div>
+  <div class="actions"><a class="back" href="./#locations">Back to SILONG</a><button class="primary" type="button" onclick="print()">Print</button></div>
+</header>
+<main id="codes"></main>
+<p class="note">Each code opens SILONG at that machine. Printing gives one Silongan per page.</p>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" integrity="sha384-mZT2gIty7ZDdOGkxfP6joZcYdMW1Jvj9dRlfpTmaJAKKXTqzygtB22k7FLe+KZC1" crossorigin="anonymous"></script>
+<script>
+  const MACHINES = [
+    ['A', 'One Bonifacio High Street / 5th Avenue Pedestrian Plaza', 'img/b3e5dbed33.png'],
+    ['B', 'Bonifacio High Street Central – 7th Avenue Promenade', 'img/2724515ba7.png'],
+    ['C', 'Bonifacio Stopover / 31st Street Corridor', 'img/d87dedd030.png']
+  ];
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const host = document.getElementById('codes');
+  if (typeof qrcode !== 'function') {
+    host.innerHTML = '<p>The QR generator could not load. Check your connection and reload this page.</p>';
+  } else {
+    host.innerHTML = MACHINES.map(([id, title, img]) => {
+      const url = new URL('./#scan=' + id, location.href).href;
+      const qr = qrcode(0, 'M'); qr.addData(url); qr.make();
+      const svg = qr.createSvgTag(8, 0).replace(/ width="\d+px" height="\d+px"/, '');
+      return `<section class="code" data-id="${id}"><div class="top"><img src="${img}" alt=""><h2>Silongan ${id}</h2></div>
+        <div class="qr" role="img" aria-label="QR code for Silongan ${id}">${svg}</div>
+        <div class="cta">Scan to rent an umbrella</div><p class="addr">${esc(title)}, BGC</p><p class="url">${esc(url)}</p></section>`;
+    }).join('');
+  }
+</script>
+</body>
+</html>
