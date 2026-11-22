@@ -1,16 +1,19 @@
 /* SILONG service worker: works offline, loads instantly on repeat visits, and shows rain and heat alerts.
-   Bump VERSION whenever the site changes so phones pick up the new files. */
-const VERSION = 'silong-core-2026-11-22e';
+   Bump VERSION whenever the site changes so phones pick up the new files.
+   The demo registers sw.js and the real app registers sw.js?ns=silongapp, so the two keep separate
+   caches even though they share one website address. */
+const NS = new URL(location.href).searchParams.get('ns') === 'silongapp' ? 'silongapp' : 'silong';
+const VERSION = NS + '-core-2026-11-23a';
 const CORE = ['./', 'index.html', 'config.js', 'lang-fil.js', 'manifest.webmanifest', 'qr.html',
   'img/5f47a2806a.png', 'img/5fa28b0e07.png', 'img/581e05ef1a.png', 'img/b3e5dbed33.png', 'img/2724515ba7.png', 'img/d87dedd030.png', 'img/eb52b0bc4b.png',
   'img/icon-180.png', 'img/icon-192.png', 'img/icon-512.png'];
-const WEATHER = 'silong-weather', STATE = 'silong-state';
+const WEATHER = NS + '-weather', STATE = NS + '-state';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => (k.startsWith('silong-core-') && k !== VERSION) || k === 'silong-tiles').map((k) => caches.delete(k))))
+  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => (k.startsWith(NS + '-core-') && k !== VERSION) || (NS === 'silong' && k === 'silong-tiles')).map((k) => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 

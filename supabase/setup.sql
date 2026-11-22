@@ -33,6 +33,8 @@ create table if not exists public.tickets (
 alter table public.tickets enable row level security;
 drop policy if exists "send a ticket" on public.tickets;
 create policy "send a ticket" on public.tickets for insert to anon, authenticated with check (user_id is null or user_id = (select auth.uid()));
+-- The short reference shown to the person who sent it (for example SLG-4K2P9Q), so the team can find it.
+alter table public.tickets add column if not exists ticket text check (char_length(ticket) <= 24);
 
 -- 3. The visit counter: anonymous events. No IP addresses, no cookies, no user ids.
 create table if not exists public.events (
@@ -49,7 +51,7 @@ create policy "count an event" on public.events for insert to anon, authenticate
 
 -- 4. Totals for stats.html (Philippine time).
 create or replace function public.silong_stats()
-returns json language sql stable security definer set search_path = '' as $
+returns json language sql stable security definer set search_path = '' as $$
   with e as (select event, device, (created_at at time zone 'Asia/Manila') as local_at from public.events),
        d as (select (now() at time zone 'Asia/Manila')::date as today)
   select json_build_object(
@@ -66,9 +68,25 @@ grant execute on function public.silong_stats() to anon, authenticated;
 
 -- 5. Let people delete their own account from My Account. Their rentals, credit and support messages go with it.
 create or replace function public.delete_my_account()
-returns void language sql security definer set search_path = '' as $
+returns void language sql security definer set search_path = '' as $$
   delete from public.tickets where user_id = (select auth.uid());
   delete from auth.users where id = (select auth.uid());
 $$;
 revoke all on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
+
+-- 6. For the team: everyone with an account, and whether they want launch news. The website can't
+--    reach this (the "team" schema isn't published through the API). Read it in the Supabase
+--    dashboard: Table Editor, schema "team", or SQL Editor: select * from team.launch_list;
+create schema if not exists team;
+revoke all on schema team from public, anon, authenticated;
+create or replace view team.launch_list as
+  select u.email,
+         u.raw_user_meta_data ->> 'name' as name,
+         nullif(u.raw_user_meta_data ->> 'mobile', '') as mobile,
+         coalesce((u.raw_user_meta_data ->> 'launch_updates')::boolean, true) as wants_launch_news,
+         u.created_at as signed_up
+  from auth.users u
+  where not coalesce(u.is_anonymous, false)
+  order by u.created_at;
+revoke all on team.launch_list from public, anon, authenticated;

@@ -2,7 +2,8 @@
 
 A front-end prototype of SILONG, a smart umbrella rental service in Bonifacio Global City (BGC), Taguig. This is a reworked copy of the [original prototype](https://moisesojano-spec.github.io/silong/), which stays unchanged.
 
-Live: https://silong-on-the-go.github.io/silong/
+Live demo: https://silong-on-the-go.github.io/silong/
+The real app, before launch: https://silong-on-the-go.github.io/app/ (repo [silong-on-the-go/app](https://github.com/silong-on-the-go/app))
 
 ## What changed
 
@@ -13,27 +14,24 @@ Live: https://silong-on-the-go.github.io/silong/
 - **Works offline, and opens instantly on repeat visits.** A service worker (`sw.js`) keeps a copy of the app on the device. Without a signal, the app still opens, with the last saved weather and a simple map.
 - **Rain and heat alerts.** Turn them on from the home screen or from Account, and SILONG sends a phone notification before rain (a 50% chance or more in the next few hours) or strong sun (UV 8 or more) in BGC. The forecast comes from Open-Meteo.
 - **English or Filipino.** One tap switches every screen, and Kuya Silong's answers, between English and Filipino. The Filipino text is in `lang-fil.js`.
-- **Real accounts, once switched on.** With a free Supabase project, sign-ups, logins, rentals and SILONG credit carry over between phone, tablet and PC, and support messages reach the team. The steps are below. Until then, accounts stay in the browser, as before.
-- **A privacy-friendly visit counter.** `stats.html` shows visits, demo starts, sign-ups, rentals, questions to Kuya Silong and QR scans, by day and by kind of device. There are no cookies, and the counter saves nothing that identifies a person: only what happened, the kind of device and the language. It respects Do Not Track, and it switches on together with Supabase.
+- **A real app alongside the demo.** [The real app](https://silong-on-the-go.github.io/app/) runs this same code with real accounts (Supabase), launch news, a support inbox and a visit counter, while renting says "launching soon" until the machines are in. This demo keeps everything simulated and on the device.
+- **A privacy-friendly visit counter** in the real app. [stats.html](https://silong-on-the-go.github.io/app/stats.html) shows visits, sign-ups, questions to Kuya Silong and QR scans, by day and by kind of device. There are no cookies, and the counter saves nothing that identifies a person: only what happened, the kind of device and the language. It respects Do Not Track.
 - **Much faster, same picture quality.** The images are the original files, at full quality, but each is stored once instead of being pasted into the page up to five times. The first screen no longer waits for the whole page or the web fonts to arrive.
 - **Try it without signing up.** "Try the demo" starts a throwaway guest account in one tap.
 - **Phones, tablets and PCs.** Tested on screens from a 360-pixel-wide phone through iPad mini, iPad Air and iPad Pro in both orientations to full-HD monitors. Tablets get two-column layouts, short screens (1366×768 laptops, iPads held sideways) get a compact sidebar, text fields are large enough that iPhones and iPads don't zoom in when you tap them, and the site can be added to the home screen like an app. On wide monitors the home page becomes a dashboard.
 - **Rain or shine.** The weather card shows today's UV peak and suggests an umbrella as shade on strong-sun days.
 - **Smaller fixes.** Kuya Silong is there from the first screen on every device, with his own spot in the sidebar on wide screens. Machines are named the same way everywhere, developer notes are gone from the screens, the FAQ and terms match the new model, and the site has a favicon and link-preview tags.
 
-## Switch on real accounts and the visit counter
+## The real app
 
-This takes about ten minutes on Supabase's free plan.
+This repo is also the source of [the real app](https://silong-on-the-go.github.io/app/). Both sites run the same `index.html`; what differs is `config.js`:
 
-1. Sign in at [supabase.com](https://supabase.com) and create a new project called `silong`. Choose the Singapore region, the closest to Manila. Supabase asks for a database password: keep it to yourself, because the site never needs it.
-2. Open **SQL Editor**, click **New query**, paste all of [`supabase/setup.sql`](supabase/setup.sql) and click **Run**. This creates the tables and their access rules, and it is safe to run again.
-3. Open **Authentication → Sign In / Providers** and turn on **Allow anonymous sign-ins**, which powers "Try the demo". For the prototype, also turn off **Confirm email**, because Supabase's built-in email sender only allows a few emails an hour. Before a real launch, connect a proper email sender and turn it back on.
-4. Open **Authentication → URL Configuration** and set the **Site URL** to `https://silong-on-the-go.github.io/silong/`.
-5. Copy the **Project URL** and the **publishable key** (both are on the project's **Connect** panel) into `config.js`, then publish. Both values are designed to be public: the access rules from step 2 decide what anyone can read or write. Never put a secret or `service_role` key in `config.js`.
+- **Here (the demo)** `config.js` is empty, so everything is simulated and accounts live in the browser.
+- **In [silong-on-the-go/app](https://github.com/silong-on-the-go/app)** `config.js` sets `MODE: 'live'` and connects the Supabase project. That gives real accounts, launch news, support messages and the visit counter, while renting and payments say "launching soon".
 
-The "Prototype status" card on the Account screen then shows "Authentication and accounts: Connected (Supabase)", and `stats.html` starts counting. Support messages arrive in the `tickets` table (**Table Editor → tickets**).
+The two sites share one address but never share stored data or offline copies.
 
-A free project pauses after a week with no activity. Restore it from the Supabase dashboard; the data is kept.
+To publish a change to both: commit and push here, then run `node tools/build-app.mjs ../silong-app` and commit and push the app repo. The app's README covers its database, the launch list and what's left before launch.
 
 ## Good to know
 
@@ -48,10 +46,11 @@ It is a static site: publish the folder with GitHub Pages as is.
 | File | What it is |
 | --- | --- |
 | `index.html` | The whole app |
-| `config.js` | Public settings: the Supabase project, and an optional Google Maps key |
+| `config.js` | Public settings. Empty in the demo; the real app's copy sets `MODE: 'live'` and its Supabase project |
 | `lang-fil.js` | The Filipino text |
 | `sw.js` | The offline copy and the alerts. Change `VERSION` whenever the site changes, so phones pick up the new files |
 | `qr.html` | Printable QR codes, one per Silongan |
 | `stats.html` | The visit counter |
-| `supabase/setup.sql` | The database setup for real accounts and the counter |
+| `supabase/setup.sql` | The database setup for the real app's accounts, support messages, launch list and counter |
+| `tools/build-app.mjs` | Copies this code into the real app's repo |
 | `manifest.webmanifest`, `img/` | The app icon, the images and the home-screen settings |

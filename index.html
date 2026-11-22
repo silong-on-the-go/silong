@@ -963,6 +963,10 @@ body.authing::before { display: none; }
 .gcash-dot { width: 20px; height: 20px; border-radius: 6px; background: #0b6cff; color: #fff; display: inline-grid; place-items: center; font-weight: 800; font-size: .7rem; line-height: 1; flex: none; }
 .examples { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .examples li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
+.mini-steps { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; }
+.mini-steps li::marker { font-weight: 800; color: var(--link); }
+.top-login { white-space: nowrap; }
+.avatar.guest { background: var(--surface-2); color: var(--ink-2); }
 .examples li b { font-family: var(--font-display); }
 .cap-card { border-left: 5px solid var(--c-green, #238a3e); }
 .pay-hero { font-family: var(--font-display); font-size: 1.6rem; font-weight: 800; letter-spacing: .02em; margin: 6px 0 4px; position: relative; }
@@ -1151,6 +1155,13 @@ body.no-mascot .ask-dock { width: 100%; }
 
 /* ------------------------------ 1. CONFIG + DATA ------------------------------ */
 const CFG = Object.assign({ GOOGLE_MAPS_API_KEY: '', GRACE_MINUTES: 15, WEATHER_ENABLED: true, TIMEZONE: 'Asia/Manila', TOPUP_MIN: 20, TOPUP_MAX: 5000 }, window.SILONG_CONFIG || {});
+/* MODE 'demo' (the default): everything is simulated, and accounts can live on this device.
+   MODE 'live': the real app before launch. Accounts are real (Supabase), guests can look around, and
+   renting and payments say "launching soon" until the machines and a payment provider are connected. */
+const LIVE = CFG.MODE === 'live';
+const NS = LIVE ? 'silongapp' : 'silong';   /* storage names: the demo and the real app never share data, even on one site */
+const DEMO_URL = 'https://silong-on-the-go.github.io/silong/';
+const L = (demo, live) => (LIVE ? live : demo);
 
 const PLANS = [
   { id: '1h',  label: 'Up to 1 Hour',           short: '1 hour',  hours: 1,  price: 15, desc: 'A quick dash between buildings or a short walk to your next stop.' },
@@ -1240,10 +1251,11 @@ function paygQuote(ms) {
    account management. */
 let cloudHook = null;   /* set by Cloud when accounts are connected: mirrors each signed-in user's data to the database */
 const mem = {};
+const lsKey = (k) => (LIVE ? k.replace(/^silong\./, NS + '.') : k);
 const store = {
-  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? (k in mem ? mem[k] : d) : JSON.parse(v); } catch (e) { return k in mem ? mem[k] : d; } },
-  set(k, v) { mem[k] = v; try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable: memory only */ } if (cloudHook) cloudHook(k, v); },
-  del(k) { delete mem[k]; try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
+  get(k, d) { try { const v = localStorage.getItem(lsKey(k)); return v == null ? (k in mem ? mem[k] : d) : JSON.parse(v); } catch (e) { return k in mem ? mem[k] : d; } },
+  set(k, v) { mem[k] = v; try { localStorage.setItem(lsKey(k), JSON.stringify(v)); } catch (e) { /* storage unavailable: memory only */ } if (cloudHook) cloudHook(k, v); },
+  del(k) { delete mem[k]; try { localStorage.removeItem(lsKey(k)); } catch (e) { /* ignore */ } }
 };
 
 /* AuthService. Production: replace each method with calls to a secure backend
@@ -1257,9 +1269,12 @@ const Auth = {
     } catch (e) { return 'x' + btoa(unescape(encodeURIComponent(salt + pw))); }
   },
   users() { return store.get('silong.users', []); },
-  pub(u) { return u ? { id: u.id, name: u.name, email: u.email, mobile: u.mobile, createdAt: u.createdAt } : null; },
+  pub(u) { return u ? { id: u.id, name: u.name, email: u.email, mobile: u.mobile, createdAt: u.createdAt, cloud: !!u.cloud, launch: u.launch !== false } : null; },
   current() { const id = store.get('silong.session', null); return this.pub(this.users().find((u) => u.id === id)); },
-  register(p) { return Cloud.on ? Cloud.register(p) : this.registerLocal(p); },
+  register(p) {
+    if (LIVE && !Cloud.on) return Promise.reject(new Error(Cloud.offMsg()));   /* the real app never keeps accounts on the device */
+    return Cloud.on ? Cloud.register(p) : this.registerLocal(p);
+  },
   async registerLocal({ name, email, mobile, password }) {
     const users = this.users();
     if (users.some((u) => u.email === email.toLowerCase())) throw new Error('An account with this email already exists. Try logging in instead.');
@@ -1269,6 +1284,7 @@ const Auth = {
     return this.pub(u);
   },
   async login(email, password) {
+    if (LIVE) { if (!Cloud.on) throw new Error(Cloud.offMsg()); return Cloud.login(email, password); }
     if (Cloud.on) { try { return await Cloud.login(email, password); } catch (err) { if (!this.users().some((x) => !x.cloud && x.email === email.toLowerCase())) throw err; } }
     const u = this.users().find((x) => x.email === email.toLowerCase());
     if (!u || u.hash !== await this.hash(password, u.salt)) throw new Error('Email or password is incorrect.');
@@ -1277,6 +1293,7 @@ const Auth = {
   },
   logout() { if (Cloud.on) Cloud.logout(); store.del('silong.session'); },
   async update(id, { name, email, mobile, newPassword }) {
+    if (LIVE && !Cloud.on) throw new Error(Cloud.offMsg());
     if (Cloud.on && (this.users().find((x) => x.id === id) || {}).cloud) return Cloud.update(id, { name, email, mobile, newPassword });
     const users = this.users();
     const u = users.find((x) => x.id === id);
@@ -1533,7 +1550,7 @@ const Cloud = {
     if (!this.configured()) return;
     try {
       await within(loadScript(LIBS.supabase), 8000);
-      this.sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'silong.auth' } });
+      this.sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: NS + '.auth' } });
       this.on = true; cloudHook = (k, v) => this.push(k, v);
       const { data } = await within(this.sb.auth.getSession(), 6000);
       const cur = Auth.users().find((u) => u.id === store.get('silong.session', null));
@@ -1544,7 +1561,7 @@ const Cloud = {
   userFrom(u) {
     const m = u.user_metadata || {};
     return { id: u.id, name: m.name || (u.is_anonymous ? 'Guest' : String(u.email || 'SILONG user').split('@')[0]), email: u.email || 'guest@demo.silong.ph',
-      mobile: m.mobile || '', createdAt: Date.parse(u.created_at) || Date.now(), cloud: true, guest: !!u.is_anonymous };
+      mobile: m.mobile || '', createdAt: Date.parse(u.created_at) || Date.now(), cloud: true, guest: !!u.is_anonymous, launch: m.launch_updates !== false };
   },
   async adopt(u) {
     const me = this.userFrom(u);
@@ -1570,10 +1587,19 @@ const Cloud = {
     if (/already (registered|exists)/i.test(s)) return 'An account with this email already exists. Try logging in instead.';
     if (/rate limit/i.test(s)) return 'Too many tries. Wait a minute and try again.';
     if (/fetch|network|timeout/i.test(s)) return 'Can’t reach SILONG right now. Check your connection and try again.';
+    if (/signups? not allowed|signup.*disabled/i.test(s)) return 'Sign-ups are paused right now. Try again later.';
+    if (/password should|weak password/i.test(s)) return 'Use at least 8 characters with a letter and a number.';
+    if (/invalid.*email|email.*invalid/i.test(s)) return 'Enter a valid email address, like name@example.com.';
     return s;
   },
-  async register({ name, email, mobile, password }) {
-    const { data, error } = await this.sb.auth.signUp({ email, password, options: { data: { name, mobile } } });
+  offMsg() { return this.configured() ? 'Can’t reach SILONG right now. Check your connection and try again.' : 'Accounts open soon. Check back in a few days.'; },
+  async setLaunch(on) {
+    const { data, error } = await this.sb.auth.updateUser({ data: { launch_updates: !!on } });
+    if (error) throw new Error(this.errMsg(error));
+    return this.adopt(data.user);
+  },
+  async register({ name, email, mobile, password, launch }) {
+    const { data, error } = await this.sb.auth.signUp({ email, password, options: { data: { name, mobile, launch_updates: launch !== false } } });
     if (error) throw new Error(this.errMsg(error));
     if (!data.session) throw new Error('Almost done: open the link we emailed you, then log in.');
     return this.adopt(data.user);
@@ -1592,7 +1618,7 @@ const Cloud = {
   async update(id, { name, email, mobile, newPassword }) {
     const cur = Auth.users().find((x) => x.id === id) || {}, attrs = { data: { name, mobile } };
     if (newPassword) attrs.password = newPassword;
-    if (email && email.toLowerCase() !== cur.email && !cur.guest) attrs.email = email;
+    if (!LIVE && email && email.toLowerCase() !== cur.email && !cur.guest) attrs.email = email;   /* the real app changes emails through support until email sending is set up */
     const { data, error } = await this.sb.auth.updateUser(attrs);
     if (error) throw new Error(this.errMsg(error));
     if (attrs.email) toast('Check your new email to confirm the change.');
@@ -1605,7 +1631,8 @@ const Cloud = {
   },
   async ticket(t) {
     if (!this.sb) return false;
-    const { error } = await this.sb.from('tickets').insert({ name: t.name, email: t.email, category: t.category, reference: t.txRef || null, message: t.message });
+    const cut = (v, n) => String(v || '').slice(0, n);
+    const { error } = await this.sb.from('tickets').insert({ name: cut(t.name, 120), email: cut(t.email, 200), category: cut(t.category, 80), reference: cut(t.txRef, 120) || null, message: cut(t.message, 4000), ticket: t.ticket || null });
     return !error;
   }
 };
@@ -1679,6 +1706,7 @@ async function openScanner() {
   tick();
 }
 function unlockAt(id) {
+  if (LIVE) { launchSheet(id); return; }
   if (!S.user) { S.pendingScan = id; navigate('welcome'); return; }
   if (activeRental()) { toast('You already have an umbrella out. Return it first.'); navigate('rentals'); return; }
   const rental = Rentals.start(S.user.id, { planId: '24h', kioskId: id });
@@ -1687,13 +1715,30 @@ function unlockAt(id) {
   toast('Umbrella unlocked at Silongan ' + id + ' (demo). The meter is running.'); navigate('rentals');
 }
 function scannedAt(id) {
+  if (LIVE) { launchSheet(id); return; }
   if (activeRental()) { toast('You already have an umbrella out. Return it first.'); navigate('rentals'); return; }
   rentSheet(id); toast('You scanned Silongan ' + id + '.');
+}
+/* The real app before launch: there are no machines or payments yet, so anything that would start a
+   rental explains that instead, and offers launch news. */
+function launchCTA() {
+  if (!S.user) return `<div class="btn-row"><a class="btn" href="#register">${ic('bell', 'sm')} Get launch news</a><a class="btn secondary" href="#login">Log in</a></div>`;
+  if (S.user.launch !== false) return `<div class="notice">${ic('check', 'sm')}<span>You’re on the launch list. We’ll email you when SILONG opens.</span></div>`;
+  return `<div class="btn-row"><button class="btn" type="button" data-action="launch-on">${ic('bell', 'sm')} Email me at launch</button></div>`;
+}
+function launchSheet(kioskId) {
+  const k = kioskId && kiosk(kioskId);
+  openModal({ label: 'SILONG is launching soon', html: `
+    <div class="modal-head"><div><span class="eyebrow">Launching soon</span><h2>${k ? 'This Silongan opens soon' : 'Renting opens at launch'}</h2></div><button class="icon-btn" type="button" data-close aria-label="Close">${ic('x')}</button></div>
+    ${k ? `<div class="scan-box"><img src="${k.emblem}" alt="" width="64" height="64" style="border-radius:14px"><div><b>Silongan ${esc(k.id)}</b><p class="muted small" style="margin:4px 0 0">${esc(k.title)}</p></div></div>` : ''}
+    <p style="margin:0">SILONG’s vending machines are being prepared. Renting and payments open the day they’re installed.</p>
+    ${launchCTA()}
+    <p class="muted small" style="margin:0">Want to see how renting will work? <a href="${DEMO_URL}" target="_blank" rel="noopener">Try the demo</a></p>` });
 }
 
 /* ---- Offline: the service worker keeps a copy of the app; these just say what's happening. ---- */
 addEventListener('offline', () => toast('You’re offline. SILONG keeps working with what’s saved on this device.'));
-addEventListener('online', () => { toast('Back online.'); Wx.at = 0; if (S.user && S.route === 'home') initSky(); });
+addEventListener('online', () => { toast('Back online.'); Wx.at = 0; if (S.shell && S.route === 'home') initSky(); });
 
 /* ------------------------------ 3. UI HELPERS ------------------------------ */
 function toast(msg) {
@@ -1742,12 +1787,12 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-function field({ id, label, type = 'text', value = '', autocomplete = '', hint = '', required = true, inputmode = '', placeholder = '', icon = '' }) {
+function field({ id, label, type = 'text', value = '', autocomplete = '', hint = '', required = true, inputmode = '', placeholder = '', icon = '', readonly = false }) {
   const pw = type === 'password';
   return `<div class="field">
     <label for="${id}">${label}${required ? '' : ' <span class="muted" style="font-weight:400">(optional)</span>'}</label>
     <div class="input-wrap${pw ? ' pw' : ''}${icon ? ' has-ic' : ''}">${icon ? `<span class="in-ic">${ic(icon)}</span>` : ''}
-      <input class="input" id="${id}" name="${id}" type="${type}" value="${esc(value)}" ${autocomplete ? `autocomplete="${autocomplete}"` : ''} ${inputmode ? `inputmode="${inputmode}"` : ''} ${placeholder ? `placeholder="${esc(placeholder)}"` : ''} aria-describedby="${id}-err${hint ? ' ' + id + '-hint' : ''}">
+      <input class="input" id="${id}" name="${id}" type="${type}" value="${esc(value)}" ${readonly ? 'readonly' : ''} ${autocomplete ? `autocomplete="${autocomplete}"` : ''} ${inputmode ? `inputmode="${inputmode}"` : ''} ${placeholder ? `placeholder="${esc(placeholder)}"` : ''} aria-describedby="${id}-err${hint ? ' ' + id + '-hint' : ''}">
       ${pw ? `<button class="toggle" type="button" data-action="toggle-pw" data-target="${id}" aria-label="Show password" aria-pressed="false">${ic('eye')}</button>` : ''}
     </div>
     ${hint ? `<p class="hint" id="${id}-hint">${hint}</p>` : ''}
@@ -1974,9 +2019,11 @@ const NAV = [
   { id: 'account',   label: 'My Account',            tab: 'Account',   icon: 'user' },
   { id: 'terms',     label: 'Terms and Conditions',  tab: 'Terms',     icon: 'doc' },
   { id: 'support',   label: 'Customer Support',      tab: 'Support',   icon: 'chat' }
-];
-const TABS = ['home', 'locations', 'rentals', 'account'];
-const SIM_NOTE = 'Prototype: linked payments, QR unlock, RFID returns and machine availability are simulated. No money moves and no umbrella is released.';
+].filter((n) => !LIVE || !['rentals', 'wallet'].includes(n.id));   /* before launch there are no rentals or payments to manage */
+const TABS = LIVE ? ['home', 'locations', 'rates', 'account'] : ['home', 'locations', 'rentals', 'account'];
+const MORE = LIVE ? ['how', 'terms', 'support'] : ['wallet', 'rates', 'how', 'terms', 'support'];
+const SIM_NOTE = L('Prototype: linked payments, QR unlock, RFID returns and machine availability are simulated. No money moves and no umbrella is released.',
+  'SILONG is launching soon. Renting and payments open when the machines are installed.');
 
 function pageHead(title, sub) { return `<div class="page-head"><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>`; }
 
@@ -2109,7 +2156,7 @@ function initSky() {
   paintSky(true);
   loadWeather().then(() => { if (S.route === 'home') paintSky(false); });
 }
-setInterval(() => { if (S.user && S.route === 'home') paintSky(false); }, 60000);
+setInterval(() => { if (S.shell && S.route === 'home') paintSky(false); }, 60000);
 
 function cardFoot() {
   return `<div class="cf-foot"><span class="cf-name">${esc(S.user.name)}</span><span class="cf-id num">SLG-${esc(S.user.id.slice(0, 4).toUpperCase())}</span></div>`;
@@ -2151,6 +2198,58 @@ function viewHome() {
     </section>
 
     <p class="footnote">${SIM_NOTE}</p>
+  </div>`;
+}
+
+/* ---- Home in the real app, before launch: anyone can look around, and renting opens at launch ---- */
+function viewHomeLive() {
+  const u = S.user, first = u ? u.name.trim().split(/\s+/)[0] : '';
+  const tiles = [['locations', 'img/b3e5dbed33.png', 'Find a Silongan', '3 planned spots'], ['rates', 'img/2724515ba7.png', 'Prices', '₱15 first hour'], ['how', 'img/d87dedd030.png', 'How it works', 'Scan, take, return'],
+    u ? ['account', 'img/eb52b0bc4b.png', 'My account', u.launch !== false ? 'Launch news on' : 'Launch news off'] : ['register', 'img/eb52b0bc4b.png', 'Create an account', 'Get launch news']];
+  return `<div class="view home">
+    <section class="hero">
+      <span class="eyebrow">SILONG · Shelter on the Go</span>
+      <h1>${u ? `Hello, ${esc(first)}!` : 'Shelter on the Go.'}</h1>
+      <p>Rain or shine, borrow an umbrella at a Silongan in BGC and return it to any other. You pay only for the time you use.</p>
+      <div class="hero-chips"><span class="hchip">${ic('clock', 'sm')} <b>Launching soon</b></span>${u
+        ? `<a class="hchip" href="#account" data-go="account">${ic(u.launch !== false ? 'check' : 'bell', 'sm')} ${u.launch !== false ? 'You’re on the launch list' : 'Launch news is off'}</a>`
+        : `<a class="hchip" href="#register">${ic('bell', 'sm')} Get launch news</a>`}</div>
+      <div class="hero-umb" aria-hidden="true">${ic('umbrella')}<i class="drop d1"></i><i class="drop d2"></i><i class="drop d3"></i></div>
+      <div class="skyline" aria-hidden="true"></div><div class="pattern-strip"></div>
+    </section>
+
+    <section class="stack today" aria-label="Today in BGC"><div class="sec-head"><h2>Today in BGC</h2><button class="btn ghost sm alert-btn" type="button" data-action="alerts-toggle" aria-pressed="${Alerts.on()}">${ic('bell', 'sm')} ${Alerts.on() ? 'Alerts on' : 'Rain and heat alerts'}</button></div>
+      ${skyHTML()}</section>
+
+    <nav class="qtiles" aria-label="Quick actions">${tiles.map(([id, img, t, sub]) => `<a class="qtile" href="#${id}" data-go="${id}"><img src="${img}" alt=""><b>${t}</b><small>${sub}</small></a>`).join('')}</nav>
+
+    <div class="grid two-col home-row">
+      <section class="stack" aria-label="Launching soon"><div class="sec-head"><h2>Coming to BGC</h2></div>
+        <div class="card stack" style="gap:12px"><p style="margin:0">The first three Silongans are planned around Bonifacio High Street. Renting and payments open the day the machines are installed.</p>
+          ${launchCTA()}</div></section>
+      <section class="stack" aria-label="How renting will work"><div class="sec-head"><h2>How renting will work</h2><a href="#how" data-go="how" class="small">Details</a></div>
+        <div class="card stack" style="gap:12px"><ol class="mini-steps"><li>Scan the QR on any Silongan with this app.</li><li>Take the umbrella that unlocks.</li><li>Return it to any Silongan. You’re charged once, for the time you used.</li></ol>
+          <p class="muted small" style="margin:0">See it in action: <a href="${DEMO_URL}" target="_blank" rel="noopener">try the demo</a></p></div></section>
+    </div>
+
+    <section class="stack home-sec" aria-label="Silongan map"><div class="sec-head"><h2>Find a Silongan</h2><a href="#locations" data-go="locations" class="small">Open full map</a></div>
+      <div class="mapfx"><div class="map-card cool" id="home-map"></div>${CFG.GOOGLE_MAPS_API_KEY ? '' : '<div class="radar" aria-hidden="true"></div>'}
+        <div class="mapfx-chip"><i></i>3 planned machines around BGC</div></div>
+      <div class="legend">${KIOSKS.map((k) => `<button class="lg-chip" type="button" data-action="home-pin" data-id="${k.id}"><img src="${k.emblem}" alt=""><span><b>Silongan ${k.id}</b><small>${esc(k.title)}</small></span></button>`).join('')}</div>
+      <p class="muted small">Pin positions are approximate until the machines are installed.</p>
+    </section>
+
+    <p class="footnote">${SIM_NOTE}</p>
+  </div>`;
+}
+/* ---- Rentals and payment in the real app, before launch ---- */
+function viewSoon(kind) {
+  const pay = kind === 'wallet';
+  return `<div class="view">
+    ${pageHead(pay ? 'Payment' : 'My rentals', pay ? 'Link GCash, Maya or a card once, and each return is charged automatically.' : 'Your umbrella, its live charge and your past rentals will show here.')}
+    <div class="card empty">${ic(pay ? 'wallet' : 'receipt')}<div><h3>${pay ? 'Payments open at launch' : 'Rentals start at launch'}</h3><p class="muted small" style="margin-top:4px">${pay ? 'There’s nothing to set up yet. SILONG doesn’t ask for payment details before launch.' : 'Once the machines are installed, scan a Silongan’s QR with this app to take an umbrella.'}</p></div>
+      <a class="btn" href="#locations" data-go="locations">${ic('pin', 'sm')} See the planned Silongans</a></div>
+    ${launchCTA()}
   </div>`;
 }
 
@@ -2198,20 +2297,25 @@ function locCard(k) {
     <div class="btn-row">
       <a class="btn sm" href="${dirUrl(k)}" target="_blank" rel="noopener">${ic('nav', 'sm')} Get Directions</a>
       <button class="btn secondary sm" type="button" data-action="show-kiosk" data-id="${k.id}">${ic('pin', 'sm')} Show on map</button>
-      <button class="btn ghost sm" type="button" data-action="rent-at" data-id="${k.id}">${ic('qr', 'sm')} Scan to rent (demo)</button>
+      ${LIVE ? '' : `<button class="btn ghost sm" type="button" data-action="rent-at" data-id="${k.id}">${ic('qr', 'sm')} Scan to rent (demo)</button>`}
     </div></article>`;
 }
-const ROADMAP = [
+const ROADMAP = LIVE ? [
+  { id: 'machines', img: 'img/b3e5dbed33.png', tag: 'Launching soon', title: 'The first three Silongans', text: 'Around Bonifacio High Street. Pin positions are approximate until the machines are installed.' },
+  { id: 'pay', img: 'img/2724515ba7.png', tag: 'At launch', title: 'GCash, Maya and card payments', text: 'Link a payment method once and every return is charged automatically.' },
+  { id: 'stock', img: 'img/d87dedd030.png', tag: 'At launch', title: 'Live umbrella availability', text: 'See how many umbrellas are ready at each machine.' },
+  { id: 'more', img: 'img/eb52b0bc4b.png', tag: 'Planned', title: 'More Silongans across BGC', text: 'More vending machine spots are being considered around the district. Locations are not final.' }
+] : [
   { id: 'more', img: 'img/b3e5dbed33.png', tag: 'Planned', title: 'More Silongans across BGC', text: 'More vending machine spots are being considered around the district. Locations are not final.' },
   { id: 'stock', img: 'img/d87dedd030.png', tag: 'Needs connection', title: 'Live umbrella availability', text: 'See how many umbrellas are ready at each machine, once the vending machines are connected.' },
   { id: 'pay', img: 'img/2724515ba7.png', tag: 'Simulated', title: 'GCash, Maya and card linking', text: 'Link a payment method once and every return is charged automatically. Simulated in this prototype.' },
-  { id: 'rain', img: 'img/eb52b0bc4b.png', tag: 'Idea', title: 'Rain and heat alerts', text: 'A heads-up when rain or strong sun is coming near your nearest Silongan.' }
+  { id: 'rain', img: 'img/eb52b0bc4b.png', tag: 'Live now', title: 'Rain and heat alerts', text: 'A heads-up when rain or strong sun is coming in BGC. Turn them on from the Home page.' }
 ];
 const notified = () => store.get('silong.notify', []);
 function roadCard(r, i) {
   const on = notified().includes(r.id);
   return `<article class="road-card" style="--i:${i}"><img src="${r.img}" alt=""><span class="chip plain">${r.tag}</span><h3>${r.title}</h3><p>${r.text}</p>
-    <button class="btn ${on ? '' : 'secondary'} sm" type="button" data-action="notify" data-id="${r.id}" aria-pressed="${on}">${on ? 'Saved ✓' : 'Notify me'}</button></article>`;
+    ${LIVE ? '' : `<button class="btn ${on ? '' : 'secondary'} sm" type="button" data-action="notify" data-id="${r.id}" aria-pressed="${on}">${on ? 'Saved ✓' : 'Notify me'}</button>`}</article>`;
 }
 function viewLocations() {
   return `<div class="view locs">
@@ -2225,7 +2329,7 @@ function viewLocations() {
     </section>
     <div class="locations">
       <div><div class="mapfx"><div class="map-card cool" id="map-host"></div>${CFG.GOOGLE_MAPS_API_KEY ? '' : '<div class="radar" aria-hidden="true"></div>'}<div class="mapfx-chip"><i></i>Tap a pin to focus</div></div>
-        <div class="btn-row" style="margin-top:10px"><button class="btn secondary sm" type="button" data-action="locate">${ic('nav', 'sm')} Find the one nearest me</button><a class="btn ghost sm" href="qr.html" target="_blank" rel="noopener">${ic('qr', 'sm')} Print the demo QR codes</a></div>
+        <div class="btn-row" style="margin-top:10px"><button class="btn secondary sm" type="button" data-action="locate">${ic('nav', 'sm')} Find the one nearest me</button>${LIVE ? '' : `<a class="btn ghost sm" href="qr.html" target="_blank" rel="noopener">${ic('qr', 'sm')} Print the demo QR codes</a>`}</div>
         <p class="muted small" style="margin-top:8px">Pin positions are approximate until the machines are installed.</p></div>
       <div class="loc-list">
         ${KIOSKS.map(locCard).join('')}
@@ -2235,8 +2339,8 @@ function viewLocations() {
       </div>
     </div>
     <section class="stack" aria-label="Coming soon to SILONG"><div class="sec-head"><h2>Coming soon to SILONG</h2><span class="muted small">Swipe</span></div>
-      <p class="muted small">Roadmap ideas for this prototype. Nothing here is scheduled or confirmed, and there are no dates yet.</p>
-      <div class="road">${ROADMAP.map(roadCard).join('')}</div></section>
+      <p class="muted small">${L('Roadmap ideas for this prototype. Nothing here is scheduled or confirmed, and there are no dates yet.', 'What’s next for SILONG. There are no dates yet, and everyone on the launch list hears first.')}</p>
+      <div class="road">${ROADMAP.map(roadCard).join('')}</div>${LIVE ? launchCTA() : ''}</section>
   </div>`;
 }
 
@@ -2252,9 +2356,9 @@ function viewRates() {
       <div class="card"><h3>What you\u2019d pay</h3><p class="muted small" style="margin:4px 0 12px">Charged at the lowest step that covers your time.</p>
         <ul class="examples">${[['Out for 40 minutes', 40], ['Out for 2 h 10 min', 130], ['Out for 9 hours', 540], ['Out for 1 day and 3 hours', 1620]].map(([t, m]) => `<li><span>${t}</span><b class="num">${pesoW(paygCost(m * 60000))}</b></li>`).join('')}</ul></div>
       <div class="card cap-card"><h3>Never more than \u20B1225</h3><p class="muted" style="margin-top:6px">That\u2019s the price of the umbrella. Keep it for days and the charge stops at \u20B1225, and the umbrella is yours. There\u2019s no separate lost-umbrella fee and no late fee to chase.</p>
-        <a class="btn" href="#locations" data-go="locations" style="margin-top:14px">${ic('qr', 'sm')} Find a Silongan to scan</a></div>
+        <a class="btn" href="#locations" data-go="locations" style="margin-top:14px">${LIVE ? `${ic('pin', 'sm')} See the planned Silongans` : `${ic('qr', 'sm')} Find a Silongan to scan`}</a></div>
     </div>
-    <p class="footnote" style="text-align:left">Prototype: charges are simulated. No payment is taken and no umbrella is released.</p>
+    <p class="footnote" style="text-align:left">${L('Prototype: charges are simulated. No payment is taken and no umbrella is released.', 'Prices at launch. Certain fees and charges are subject to final approval by SILONG management.')}</p>
   </div>`;
 }
 function rentSheet(kioskId) {
@@ -2340,7 +2444,7 @@ function vendingFig() {
 
 function viewHow() {
   const steps = [
-    ['userplus', 't-blue', 'Sign up and link GCash, Maya or a card', 'One time only. Nothing is charged until you return an umbrella.', ['Payment', 'wallet']],
+    ['userplus', 't-blue', 'Sign up and link GCash, Maya or a card', 'One time only. Nothing is charged until you return an umbrella.', LIVE ? (S.user ? ['My account', 'account'] : ['Create an account', 'register']) : ['Payment', 'wallet']],
     ['pin', 't-red', 'Find a Silongan', 'The map shows every SILONG vending machine around BGC.', ['Open the map', 'locations']],
     ['umbrella', 't-gold', 'Scan the QR and take your umbrella', 'Scan the code on the machine with the app and an umbrella unlocks. No coins, and no plan to pick.'],
     ['clock', 't-green', 'Use it, rain or shine', 'The app shows how long you’ve had it and the charge so far: ₱15 for the first hour, never more than ₱40 a day.', ['See prices', 'rates']],
@@ -2348,6 +2452,7 @@ function viewHow() {
   ];
   return `<div class="view">
     ${pageHead('How it works', 'Five steps, and you never pay at the machine.')}
+    ${LIVE ? `<div class="notice quiet">${ic('info', 'sm')}<span>This is how renting will work once SILONG’s machines are installed. <a href="${DEMO_URL}" target="_blank" rel="noopener">Try it in the demo</a></span></div>` : ''}
     <div class="how-grid">${vendingFig()}<div class="steps">${steps.map((s, i) => `<div class="step"><div class="tile ${s[1]}">${ic(s[0])}<em>${i + 1}</em></div>
       <div class="body"><h3>Step ${i + 1} — ${s[2]}</h3><p>${s[3]}</p>${s[4] ? `<a class="btn ghost sm" href="#${s[4][1]}" data-go="${s[4][1]}" style="padding:0">${s[4][0]} ${ic('arrow', 'sm')}</a>` : ''}</div></div>`).join('')}</div></div>
   </div>`;
@@ -2369,7 +2474,8 @@ const TERMS = [
     <p>Repair and replacement charges will not be combined for the same damage incident.</p>`],
   ['E', 'Customer Responsibilities', `<ul><li>Use the umbrella properly and return it in good condition.</li><li>Do not damage or tamper with the umbrella or vending machine.</li><li>Make sure the umbrella is properly returned.</li><li>Check that the vending machine confirms your successful return.</li><li>Keep your payment receipt or transaction reference.</li><li>Misuse of the service may result in extra charges or restrictions on future rentals.</li></ul>`],
   ['F', 'Payment and Refund Policy', `<ul><li>The rental fee is charged to the linked payment method when the umbrella is returned.</li><li>If the vending machine fails to release an umbrella after a scan, nothing is charged.</li><li>Customers must report incorrect charges or failed transactions to customer support for verification.</li><li>Refunds will be processed through the original payment method, depending on the payment provider’s process.</li><li>Extra fees for late, lost, or damaged umbrellas will follow the approved price list.</li></ul>`],
-  ['G', 'Data Privacy and Security', `<ul><li>SILONG uses RFID to track umbrella rentals and returns.</li><li>Customer and payment information will be kept safe.</li><li>Personal information will only be used for proper business purposes.</li><li>Customer information will not be shared with unauthorized people.</li><li>Keep payment details and transaction receipts safe.</li></ul>`],
+  ['G', 'Data Privacy and Security', `<ul><li>SILONG uses RFID to track umbrella rentals and returns.</li><li>Customer and payment information will be kept safe.</li><li>Personal information will only be used for proper business purposes.</li><li>Customer information will not be shared with unauthorized people.</li><li>Keep payment details and transaction receipts safe.</li></ul>` + (LIVE ? `<p class="lead">Before launch</p>
+    <ul><li>Your account holds your name, your email address and, if you add it, your mobile number. They are stored in SILONG’s database, hosted by Supabase in Singapore.</li><li>SILONG uses them only to run your account, answer your support messages and, if you ask for it, tell you when SILONG launches.</li><li>No payment details are collected before launch.</li><li>The visit counter records only what happened, such as a visit, with the kind of device and the language. It uses no cookies and nothing that identifies you.</li><li>You can turn off launch news, or delete your account and its data, anytime in My Account.</li></ul>` : '')],
   ['H', 'Vending Machine Problems and Customer Support', `<ul><li>Report any problem with the vending machine to SILONG customer support.</li><li>If you pay but do not receive an umbrella, keep your payment receipt or reference number.</li><li>Do not force open or try to repair the vending machine.</li><li>SILONG will check reported problems and provide proper assistance.</li></ul>`],
   ['I', 'Agreement to the Terms and Conditions', `<p>By using SILONG, customers agree to follow these rules and take care of the rented umbrella.</p><p>SILONG may update these rules when needed to improve its service. Any changes to rental fees, penalties, and other charges will be properly announced to customers.</p>`]
 ];
@@ -2390,7 +2496,7 @@ const TOPICS = [
   ['Rental process assistance', 'help'], ['Payment concerns', 'coin'], ['Failed vending machine transactions', 'info'],
   ['Lost or damaged umbrella', 'umbrella'], ['Refund inquiry', 'return'], ['General inquiry', 'chat']
 ];
-const FAQ = [
+const FAQ = (LIVE ? [['When does SILONG launch?', 'Soon. The first three Silongans are planned around Bonifacio High Street. Create an account and we’ll email you when they open.']] : []).concat([
   ['How do I rent an umbrella?', 'Find a Silongan, scan the QR code on the machine with the SILONG app, and take the umbrella that unlocks. Return it to any Silongan when you’re done.'],
   ['How much does it cost?', '₱15 for the first hour, ₱20 up to 3 hours, ₱25 up to 6 hours and ₱40 for a full day. You’re charged once, when you return it, for the time you actually used.'],
   ['Where can I return the umbrella?', 'At any SILONG vending machine. Wait for the machine to confirm the return; the app then shows your final charge.'],
@@ -2399,9 +2505,9 @@ const FAQ = [
   ['What if I lose or damage the umbrella?', 'Report it in the app. A lost umbrella costs at most ₱225 in total, never more. Damage charges are listed in the Terms and Conditions; normal wear and tear is free.'],
   ['How do I pay?', 'Through the app: GCash, Maya or a debit or credit card, linked once. The machine takes no cash or coins, so every umbrella is tied to an account.'],
   ['How is my information used?', 'SILONG uses RFID to track rentals and returns. Customer and payment information will be kept safe, used only for proper business purposes, and not shared with unauthorized people.']
-];
+]);
 function viewSupport() {
-  const u = S.user;
+  const u = S.user || { name: '', email: '' };
   return `<div class="view">
     ${pageHead('Customer support', 'Find a quick answer or send us your concern.')}
     <button class="card ask-card" type="button" data-action="ask-open"><span class="ask-face" aria-hidden="true">${Mascot.svg}</span><span><b>Ask Kuya Silong</b><small>Quick answers about prices, renting, returns, lost umbrellas and today’s weather.</small></span>${ic('arrow', 'sm')}</button>
@@ -2410,7 +2516,7 @@ function viewSupport() {
     <section class="stack"><h2>Frequently asked questions</h2>
       <div class="acc">${FAQ.map((f) => `<details class="acc-item"><summary><span>${f[0]}</span>${ic('chev')}</summary><div class="acc-body"><p>${f[1]}</p></div></details>`).join('')}</div></section>
     <section class="stack" id="contact"><h2>Contact form</h2>
-      <div class="notice quiet">${ic('info', 'sm')}<span>Demo form: your message is saved on this device only and is not delivered to a support team yet.</span></div>
+      ${LIVE ? (Cloud.on ? '' : `<div class="notice warn">${ic('info', 'sm')}<span>The contact form opens soon.</span></div>`) : `<div class="notice quiet">${ic('info', 'sm')}<span>Demo form: your message is saved on this device only and is not delivered to a support team yet.</span></div>`}
       <form class="card form" id="support-form" novalidate data-form="support">
         <div class="form-cols">${field({ id: 'sp-name', label: 'Customer name', value: u.name, autocomplete: 'name' })}${field({ id: 'sp-email', label: 'Email address', type: 'email', value: u.email, autocomplete: 'email' })}</div>
         <div class="field"><label for="sp-cat">Concern category</label>
@@ -2460,7 +2566,58 @@ function viewAccount() {
     </div></div>`;
 }
 
-const VIEWS = { wallet: viewWallet, home: viewHome, locations: viewLocations, rates: viewRates, rentals: viewRentals, how: viewHow, account: viewAccount, terms: viewTerms, support: viewSupport };
+/* ---- Account in the real app ---- */
+function prefCards() {
+  return `<div class="card"><div class="row between" style="flex-wrap:wrap;gap:12px"><div style="min-width:0"><h3>Language</h3><p class="muted small">Every screen and Kuya Silong, in English or Filipino.</p></div>
+      <div class="seg notr" role="group" aria-label="Language"><button type="button" data-action="lang-set" data-lang="en" aria-pressed="${I18N.lang === 'en'}">English</button><button type="button" data-action="lang-set" data-lang="fil" aria-pressed="${I18N.lang === 'fil'}">Filipino</button></div></div></div>
+    <div class="card"><div class="row between" style="flex-wrap:wrap;gap:12px"><div style="min-width:0;flex:1 1 220px"><h3>Rain and heat alerts</h3><p class="muted small">A notification when rain or strong sun is coming in BGC. Works while SILONG is open, and in the background on Android once it’s added to the home screen.</p></div>
+      <button class="btn ${Alerts.on() ? '' : 'secondary'} sm" type="button" data-action="alerts-toggle" aria-pressed="${Alerts.on()}">${ic('bell', 'sm')} ${Alerts.on() ? 'On' : 'Turn on'}</button></div></div>`;
+}
+function statusCard() {
+  const rows = [['Accounts', 'Live'], ['Map and directions', 'Live'], ['Rain and heat alerts', 'Live'], ['Ask Kuya Silong', 'Live'],
+    ['Vending machines', 'Launching soon'], ['GCash, Maya and card payments', 'At launch'], ['Live umbrella availability', 'At launch']];
+  return `<div class="card"><h3>SILONG status</h3><p class="muted small">What works today, and what opens at launch.</p>
+    <div class="status-grid" style="margin-top:8px">${rows.map((r) => `<div><span>${r[0]}</span><span class="chip ${r[1] === 'Live' ? 'active' : 'plain'}">${r[1]}</span></div>`).join('')}</div></div>`;
+}
+function viewAccountLive() {
+  const u = S.user;
+  if (!u) return `<div class="view">
+    ${pageHead('My account')}
+    <div class="grid two-col" style="gap:22px">
+      <div class="stack">
+        <div class="card"><h2>Create your SILONG account</h2><p class="muted" style="margin-top:6px">Get launch news, and be ready to rent the day the machines open.</p>
+          <div class="btn-row" style="margin-top:14px"><a class="btn" href="#register">Create an account</a><a class="btn secondary" href="#login">Log in</a></div></div>
+        ${prefCards()}
+      </div>
+      <div class="stack">${statusCard()}</div>
+    </div></div>`;
+  return `<div class="view">
+    ${pageHead('My account')}
+    <div class="grid two-col" style="gap:22px">
+      <div class="stack">
+        <div class="card"><div class="row" style="flex-wrap:nowrap;gap:16px"><div class="avatar lg" aria-hidden="true">${esc(initials(u.name))}</div>
+          <div style="min-width:0"><h2 style="overflow-wrap:anywhere">${esc(u.name)}</h2><p class="muted small">Member since ${new Date(u.createdAt).toLocaleDateString(I18N.lang === 'fil' ? 'fil-PH' : 'en-PH', { dateStyle: 'medium' })}</p></div></div>
+          <dl class="kv" style="margin-top:12px"><div><dt>Email</dt><dd>${esc(u.email)}</dd></div>${u.mobile ? `<div><dt>Mobile</dt><dd class="num">${esc(u.mobile)}</dd></div>` : ''}</dl></div>
+        <div class="card"><div class="row between" style="flex-wrap:wrap;gap:12px"><div style="min-width:0;flex:1 1 220px"><h3>Launch news</h3><p class="muted small">One email when SILONG opens. Nothing else.</p></div>
+          <button class="btn ${u.launch !== false ? '' : 'secondary'} sm" type="button" data-action="launch-toggle" aria-pressed="${u.launch !== false}">${ic('bell', 'sm')} ${u.launch !== false ? 'On' : 'Turn on'}</button></div></div>
+        ${prefCards()}
+        <form class="card form" id="profile-form" novalidate data-form="profile"><h3>Edit profile</h3>
+          ${field({ id: 'pf-name', label: 'Full name', value: u.name, autocomplete: 'name' })}
+          ${field({ id: 'pf-email', label: 'Email address', type: 'email', value: u.email, autocomplete: 'email', readonly: true, hint: 'To change your email, send a message to Customer support.' })}
+          ${field({ id: 'pf-mobile', label: 'Mobile number', type: 'tel', value: u.mobile, autocomplete: 'tel', inputmode: 'tel', required: false })}
+          ${field({ id: 'pf-pass', label: 'New password', type: 'password', required: false, autocomplete: 'new-password', hint: 'Leave blank to keep your current password.' })}
+          <button class="btn" type="submit">Save changes</button></form>
+        <div class="btn-row"><button class="btn secondary" type="button" data-action="logout">${ic('logout', 'sm')} Log out</button>
+          <button class="btn danger" type="button" data-action="delete-account">Delete account</button></div>
+      </div>
+      <div class="stack">${statusCard()}
+        <div class="notice">${ic('info', 'sm')}<span>Your account is saved in SILONG’s database, so it works on any device you log in on.</span></div></div>
+    </div></div>`;
+}
+
+const VIEWS = LIVE
+  ? { wallet: () => viewSoon('wallet'), home: viewHomeLive, locations: viewLocations, rates: viewRates, rentals: () => viewSoon('rentals'), how: viewHow, account: viewAccountLive, terms: viewTerms, support: viewSupport }
+  : { wallet: viewWallet, home: viewHome, locations: viewLocations, rates: viewRates, rentals: viewRentals, how: viewHow, account: viewAccount, terms: viewTerms, support: viewSupport };
 
 /* ---- Auth screens ---- */
 function umbrellaSVG() {
@@ -2490,22 +2647,25 @@ function authShell(inner, mode) {
 function renderAuth(r) {
   let inner, mode = 'form';
   if (r === 'login') {
-    inner = `<a class="back-link" href="#welcome">${ic('arrow', 'sm')} Back</a><div><h1>Welcome back</h1><p class="muted">Log in to find a Silongan and manage your rentals.</p></div>
+    inner = `<a class="back-link" href="#${L('welcome', 'home')}">${ic('arrow', 'sm')} Back</a><div><h1>Welcome back</h1><p class="muted">${L('Log in to find a Silongan and manage your rentals.', 'Log in to your SILONG account.')}</p></div>
+      ${LIVE && !Cloud.on ? `<div class="notice warn">${ic('info', 'sm')}<span>${Cloud.offMsg()}</span></div>` : ''}
       <form class="form" id="login-form" novalidate data-form="login">${field({ id: 'lg-email', label: 'Email address', type: 'email', autocomplete: 'email', icon: 'mail' })}${field({ id: 'lg-pass', label: 'Password', type: 'password', autocomplete: 'current-password', icon: 'lock' })}
-      <p class="err" id="lg-form-err" role="alert"></p><button class="btn block" type="submit">Log in</button></form>
+      <p class="err" id="lg-form-err" role="alert"></p><button class="btn block" type="submit" ${LIVE && !Cloud.on ? 'disabled' : ''}>Log in</button></form>
       <p class="muted">New to SILONG? <a href="#register">Create an account</a></p>
-      <div class="notice quiet">${ic('info', 'sm')}<span>Prototype: accounts are stored in this browser only.</span></div>`;
+      ${LIVE ? `<p class="muted small">Forgot your password? <a href="#support">Message Customer support</a> and we’ll help you back in.</p>` : `<div class="notice quiet">${ic('info', 'sm')}<span>Prototype: accounts are stored in this browser only.</span></div>`}`;
   } else if (r === 'register') {
-    inner = `<a class="back-link" href="#welcome">${ic('arrow', 'sm')} Back</a><div><h1>Create your account</h1><p class="muted">Four details and you are ready to explore.</p></div>
+    inner = `<a class="back-link" href="#${L('welcome', 'home')}">${ic('arrow', 'sm')} Back</a><div><h1>Create your account</h1><p class="muted">${L('Four details and you are ready to explore.', 'Get launch news, and be ready to rent on day one.')}</p></div>
+      ${LIVE && !Cloud.on ? `<div class="notice warn">${ic('info', 'sm')}<span>${Cloud.offMsg()}</span></div>` : ''}
       <form class="form" id="reg-form" novalidate data-form="register">
         ${field({ id: 'rg-name', label: 'Full name', autocomplete: 'name', icon: 'user' })}${field({ id: 'rg-email', label: 'Email address', type: 'email', autocomplete: 'email', icon: 'mail' })}
-        ${field({ id: 'rg-mobile', label: 'Mobile number', type: 'tel', autocomplete: 'tel', inputmode: 'tel', placeholder: '0917 123 4567', icon: 'phone' })}
+        ${field({ id: 'rg-mobile', label: 'Mobile number', type: 'tel', autocomplete: 'tel', inputmode: 'tel', placeholder: '0917 123 4567', icon: 'phone', required: !LIVE })}
         ${field({ id: 'rg-pass', label: 'Password', type: 'password', autocomplete: 'new-password', hint: 'At least 8 characters, with a letter and a number.', icon: 'lock' })}
         <div class="meter-row" aria-hidden="true"><div class="meter" id="rg-meter" data-s="0"><i></i><i></i><i></i><i></i></div><span class="hint" id="rg-meter-txt" style="min-width:64px;text-align:right"></span></div>
+        ${LIVE ? `<div class="field"><label class="check"><input type="checkbox" id="rg-launch" name="rg-launch" checked><span>Email me when SILONG launches</span></label></div>` : ''}
         <div class="field"><label class="check"><input type="checkbox" id="rg-terms" name="rg-terms" aria-describedby="rg-terms-err"><span>I agree to the <a href="#terms" data-action="open-terms">Terms and Conditions</a>.</span></label><p class="err" id="rg-terms-err" role="alert"></p></div>
-        <p class="err" id="rg-form-err" role="alert"></p><button class="btn block" type="submit">Create account</button></form>
+        <p class="err" id="rg-form-err" role="alert"></p><button class="btn block" type="submit" ${LIVE && !Cloud.on ? 'disabled' : ''}>Create account</button></form>
       <p class="muted">Already have an account? <a href="#login">Log in</a></p>
-      <div class="notice quiet">${ic('info', 'sm')}<span>Prototype: accounts are stored in this browser only and are not secure.</span></div>`;
+      ${LIVE ? `<p class="muted small">Your details stay in SILONG’s database and are used only for your account, support and launch news. See Terms, section G.</p>` : `<div class="notice quiet">${ic('info', 'sm')}<span>Prototype: accounts are stored in this browser only and are not secure.</span></div>`}`;
   } else {
     mode = 'welcome';
     inner = `<div class="auth-lang"><div class="seg notr" role="group" aria-label="Language"><button type="button" data-action="lang-set" data-lang="en" aria-pressed="${I18N.lang === 'en'}">English</button><button type="button" data-action="lang-set" data-lang="fil" aria-pressed="${I18N.lang === 'fil'}">Filipino</button></div></div>
@@ -2536,13 +2696,14 @@ function buildShell() {
     <aside class="side" aria-label="Sidebar">
       <a class="brandmark" href="#home" data-go="home" aria-label="SILONG home"><img src="img/5f47a2806a.png" alt="SILONG" width="900" height="467"></a>
       <nav aria-label="Main">${NAV.map((n, i) => `${n.id === 'how' ? '<div class="nav-sep"></div>' : ''}<a class="nav-link" href="#${n.id}" data-go="${n.id}" data-nav="${n.id}">${ic(n.icon)}${n.label}</a>`).join('')}</nav>
-      <div class="stack" style="gap:10px"><div class="mascot-dock"><button class="ask-dock" type="button" data-action="ask-open"><b>May tanong?</b><span>Ask Kuya Silong</span></button></div><button class="bal-pill block" type="button" data-go="wallet" aria-label="Payment and credit">${ic('wallet', 'sm')}<span>Credit</span><b class="num" data-balance>${peso(balance())}</b></button>
-      <div class="side-user"><div class="avatar" aria-hidden="true">${esc(initials(u.name))}</div><div><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div><button class="lang-mini notr" type="button" data-action="lang-toggle" aria-label="${I18N.lang === 'fil' ? 'Switch to English' : 'Lumipat sa Filipino'}">${I18N.lang === 'fil' ? 'EN' : 'FIL'}</button></div></div>
+      <div class="stack" style="gap:10px"><div class="mascot-dock"><button class="ask-dock" type="button" data-action="ask-open"><b>May tanong?</b><span>Ask Kuya Silong</span></button></div>${LIVE ? '' : `<button class="bal-pill block" type="button" data-go="wallet" aria-label="Payment and credit">${ic('wallet', 'sm')}<span>Credit</span><b class="num" data-balance>${peso(balance())}</b></button>`}
+      <div class="side-user">${u ? `<div class="avatar" aria-hidden="true">${esc(initials(u.name))}</div><div><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div>`
+        : `<div class="avatar guest" aria-hidden="true">${ic('user', 'sm')}</div><div><b>Guest</b><span><a href="#login">Log in</a> · <a href="#register">Sign up</a></span></div>`}<button class="lang-mini notr" type="button" data-action="lang-toggle" aria-label="${I18N.lang === 'fil' ? 'Switch to English' : 'Lumipat sa Filipino'}">${I18N.lang === 'fil' ? 'EN' : 'FIL'}</button></div></div>
     </aside>
     <div style="min-width:0">
       <header class="top"><a class="brandmark" href="#home" data-go="home" aria-label="SILONG home"><img src="img/5f47a2806a.png" alt="SILONG" width="900" height="467"></a>
-        <div class="row" style="gap:8px;flex-wrap:nowrap"><button class="lang-mini notr" type="button" data-action="lang-toggle" aria-label="${I18N.lang === 'fil' ? 'Switch to English' : 'Lumipat sa Filipino'}">${I18N.lang === 'fil' ? 'EN' : 'FIL'}</button><button class="ask-top" type="button" data-action="ask-open" aria-label="Ask Kuya Silong">${ic('chat')}</button><button class="bal-pill" type="button" data-go="wallet" aria-label="My balance">${ic('wallet', 'sm')}<b class="num" data-balance>${peso(balance())}</b></button>
-        <button class="avatar" type="button" data-go="account" aria-label="My account">${esc(initials(u.name))}</button></div></header>
+        <div class="row" style="gap:8px;flex-wrap:nowrap"><button class="lang-mini notr" type="button" data-action="lang-toggle" aria-label="${I18N.lang === 'fil' ? 'Switch to English' : 'Lumipat sa Filipino'}">${I18N.lang === 'fil' ? 'EN' : 'FIL'}</button><button class="ask-top" type="button" data-action="ask-open" aria-label="Ask Kuya Silong">${ic('chat')}</button>${LIVE ? '' : `<button class="bal-pill" type="button" data-go="wallet" aria-label="My balance">${ic('wallet', 'sm')}<b class="num" data-balance>${peso(balance())}</b></button>`}
+        ${u ? `<button class="avatar" type="button" data-go="account" aria-label="My account">${esc(initials(u.name))}</button>` : `<a class="btn sm top-login" href="#login">Log in</a>`}</div></header>
       <main id="main" tabindex="-1"><div id="view-host"></div></main>
     </div>
     <nav class="tabbar" aria-label="Main">${TABS.map((id) => { const n = NAV.find((x) => x.id === id); return `<a class="tab" href="#${id}" data-go="${id}" data-nav="${id}">${ic(n.icon)}<span>${n.tab}</span></a>`; }).join('')}
@@ -2557,7 +2718,7 @@ function renderView(keepScroll) {
   host.innerHTML = VIEWS[S.route]();
   const a = activeRental(); S.lastStatus = a ? statusOf(a) : null;
   $$('[data-nav]').forEach((el) => {
-    const id = el.dataset.nav, on = id === S.route || (id === 'more' && !TABS.includes(S.route) && ['rates', 'wallet', 'how', 'terms', 'support'].includes(S.route));
+    const id = el.dataset.nav, on = id === S.route || (id === 'more' && !TABS.includes(S.route) && MORE.includes(S.route));
     if (on) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
   });
   paintBalance(); runCounts();
@@ -2580,9 +2741,12 @@ function route() {
   S.user = Auth.current();
   /* a printed SILONG QR opens the site at #scan=A: remember the machine, then offer to unlock it */
   const scan = /^#scan=([a-z])$/i.exec(location.hash);
-  if (scan && kiosk(scan[1].toUpperCase())) { S.pendingScan = scan[1].toUpperCase(); Stats.event('qr_link'); history.replaceState(null, '', S.user ? '#home' : '#welcome'); }
+  if (scan && kiosk(scan[1].toUpperCase())) { S.pendingScan = scan[1].toUpperCase(); Stats.event('qr_link'); history.replaceState(null, '', S.user || LIVE ? '#home' : '#welcome'); }
   const r = location.hash.replace('#', '');
-  if (!S.user) {
+  if (!S.user && LIVE) {
+    /* the real app: guests look around freely; only logging in and signing up have their own screens */
+    if (r === 'login' || r === 'register') { S.route = r; renderAuth(r); window.scrollTo(0, 0); return; }
+  } else if (!S.user) {
     if (!['welcome', 'login', 'register'].includes(r)) { history.replaceState(null, '', '#welcome'); return renderAuth('welcome'); }
     S.route = r; renderAuth(r); window.scrollTo(0, 0); return;
   }
@@ -2601,12 +2765,12 @@ async function handleForm(form) {
   const kind = form.dataset.form, val = (id) => ($('#' + id).value || '');
   const btn = $('button[type="submit"]', form);
   if (kind === 'register') {
-    const e = { 'rg-name': V.name(val('rg-name')), 'rg-email': V.email(val('rg-email')), 'rg-mobile': V.mobile(val('rg-mobile')), 'rg-pass': V.password(val('rg-pass')) };
+    const e = { 'rg-name': V.name(val('rg-name')), 'rg-email': V.email(val('rg-email')), 'rg-mobile': LIVE && !val('rg-mobile').trim() ? '' : V.mobile(val('rg-mobile')), 'rg-pass': V.password(val('rg-pass')) };
     Object.entries(e).forEach(([k, m]) => setErr(k, m));
     const t = $('#rg-terms').checked; setErr('rg-terms', t ? '' : 'Please agree to the Terms and Conditions to continue.');
     if (Object.values(e).some(Boolean) || !t) { const f = $('[aria-invalid="true"]', form); if (f) f.focus(); return; }
     btn.disabled = true;
-    try { S.user = await Auth.register({ name: val('rg-name').trim(), email: val('rg-email').trim(), mobile: normMobile(val('rg-mobile')), password: val('rg-pass') }); Stats.event('signup'); toast('Account created. Welcome to SILONG!'); navigate('home'); }
+    try { S.user = await Auth.register({ name: val('rg-name').trim(), email: val('rg-email').trim(), mobile: val('rg-mobile').trim() ? normMobile(val('rg-mobile')) : '', password: val('rg-pass'), launch: LIVE ? $('#rg-launch').checked : undefined }); Stats.event('signup'); toast('Account created. Welcome to SILONG!'); navigate('home'); }
     catch (err) { $('#rg-form-err').textContent = err.message; btn.disabled = false; }
   } else if (kind === 'login') {
     const e = { 'lg-email': V.email(val('lg-email')), 'lg-pass': val('lg-pass') ? '' : 'Enter your password.' };
@@ -2617,20 +2781,23 @@ async function handleForm(form) {
     catch (err) { $('#lg-form-err').textContent = err.message; btn.disabled = false; }
   } else if (kind === 'profile') {
     const np = val('pf-pass');
-    const e = { 'pf-name': V.name(val('pf-name')), 'pf-email': V.email(val('pf-email')), 'pf-mobile': V.mobile(val('pf-mobile')), 'pf-pass': np ? V.password(np) : '' };
+    const e = { 'pf-name': V.name(val('pf-name')), 'pf-email': V.email(val('pf-email')), 'pf-mobile': LIVE && !val('pf-mobile').trim() ? '' : V.mobile(val('pf-mobile')), 'pf-pass': np ? V.password(np) : '' };
     Object.entries(e).forEach(([k, m]) => setErr(k, m));
     if (Object.values(e).some(Boolean)) { $('[aria-invalid="true"]', form).focus(); return; }
     try {
-      S.user = await Auth.update(S.user.id, { name: val('pf-name').trim(), email: val('pf-email').trim(), mobile: normMobile(val('pf-mobile')), newPassword: np });
+      S.user = await Auth.update(S.user.id, { name: val('pf-name').trim(), email: val('pf-email').trim(), mobile: val('pf-mobile').trim() ? normMobile(val('pf-mobile')) : '', newPassword: np });
       S.shell = false; route(); toast('Profile updated.');
     } catch (err) { setErr('pf-email', err.message); }
   } else if (kind === 'support') {
     const e = { 'sp-name': V.name(val('sp-name')), 'sp-email': V.email(val('sp-email')), 'sp-cat': val('sp-cat') ? '' : 'Choose a category.', 'sp-msg': val('sp-msg').trim().length >= 10 ? '' : 'Tell us a little more (at least 10 characters).' };
     Object.entries(e).forEach(([k, m]) => setErr(k, m));
     if (Object.values(e).some(Boolean)) { $('[aria-invalid="true"]', form).focus(); return; }
-    const ref = 'DEMO-' + uid().slice(0, 6).toUpperCase();
-    Support.submit({ ref, userId: S.user.id, name: val('sp-name'), email: val('sp-email'), category: val('sp-cat'), txRef: val('sp-ref'), message: val('sp-msg'), at: Date.now() });
-    const sent = Cloud.on ? await Cloud.ticket({ name: val('sp-name'), email: val('sp-email'), category: val('sp-cat'), txRef: val('sp-ref'), message: val('sp-msg') }).catch(() => false) : false;
+    const ref = L('DEMO-', 'SLG-') + uid().slice(0, 6).toUpperCase();
+    if (!LIVE) Support.submit({ ref, userId: S.user ? S.user.id : null, name: val('sp-name'), email: val('sp-email'), category: val('sp-cat'), txRef: val('sp-ref'), message: val('sp-msg'), at: Date.now() });
+    btn.disabled = true;
+    const sent = Cloud.on ? await Cloud.ticket({ name: val('sp-name'), email: val('sp-email'), category: val('sp-cat'), txRef: val('sp-ref'), message: val('sp-msg'), ticket: ref }).catch(() => false) : false;
+    btn.disabled = false;
+    if (LIVE && !sent) { $('#sp-done').innerHTML = `<div class="notice warn">${ic('info', 'sm')}<span>Your message couldn’t be sent. Check your connection and try again.</span></div>`; return; }
     $('#sp-done').innerHTML = sent
       ? `<div class="notice">${ic('check', 'sm')}<span><b>Sent to the SILONG team (${ref}).</b> We’ll reply to ${esc(val('sp-email'))}.</span></div>`
       : `<div class="notice">${ic('check', 'sm')}<span><b>Saved on this device (${ref}).</b> This is a demo. Your message has not been sent to the SILONG support team because no support system is connected yet.</span></div>`;
@@ -2655,21 +2822,31 @@ document.addEventListener('click', async (e) => {
     case 'open-terms': e.preventDefault(); openModal({ label: 'Terms and Conditions', html: `<div class="modal-head"><h2>Terms and Conditions</h2><button class="icon-btn" type="button" data-close aria-label="Close">${ic('x')}</button></div>${termsBody(false)}` }); break;
     case 'more':
       openModal({ label: 'More', html: `<div class="modal-head"><h2>More</h2><button class="icon-btn" type="button" data-close aria-label="Close">${ic('x')}</button></div>
-        <div class="more-list">${['wallet', 'rates', 'how', 'terms', 'support'].map((id) => { const n = NAV.find((x) => x.id === id); return `<button type="button" data-go="${id}">${ic(n.icon)}${n.label}</button>`; }).join('')}<button type="button" data-action="ask-open">${ic('chat')}Ask Kuya Silong</button><button type="button" class="notr" data-action="lang-toggle">${ic('globe')}${I18N.lang === 'fil' ? 'English' : 'Filipino'}</button></div>` }); break;
+        <div class="more-list">${MORE.map((id) => { const n = NAV.find((x) => x.id === id); return `<button type="button" data-go="${id}">${ic(n.icon)}${n.label}</button>`; }).join('')}<button type="button" data-action="ask-open">${ic('chat')}Ask Kuya Silong</button><button type="button" class="notr" data-action="lang-toggle">${ic('globe')}${I18N.lang === 'fil' ? 'English' : 'Filipino'}</button></div>` }); break;
     case 'logout':
-      if (await confirmDialog({ title: 'Log out of SILONG?', body: '<p>You can log back in anytime with your email and password.</p>', confirm: 'Log out' })) { Auth.logout(); S.user = null; S.shell = false; navigate('welcome'); }
+      if (await confirmDialog({ title: 'Log out of SILONG?', body: '<p>You can log back in anytime with your email and password.</p>', confirm: 'Log out' })) { Auth.logout(); S.user = null; S.shell = false; navigate(L('welcome', 'home')); }
       break;
     case 'delete-account':
       if (await confirmDialog({ title: 'Delete your account?', danger: true, confirm: 'Delete account', body: '<p>' + ((Cloud.on && (Auth.users().find((x) => x.id === S.user.id) || {}).cloud) ? 'This deletes your account, your rentals and your support messages from SILONG. It cannot be undone.' : 'This removes your demo account and rental records from this browser. It cannot be undone.') + '</p>' })) {
         if (Cloud.on && (Auth.users().find((x) => x.id === S.user.id) || {}).cloud) { try { await Cloud.removeMe(); } catch (err) { toast(err.message); break; } }
-        Auth.remove(S.user.id); S.user = null; S.shell = false; toast('Account deleted.'); navigate('welcome'); }
+        Auth.remove(S.user.id); S.user = null; S.shell = false; toast('Account deleted.'); navigate(L('welcome', 'home')); }
       break;
     case 'mascot-toggle': Mascot.set(!Mascot.on()); t.textContent = Mascot.on() ? 'Hide' : 'Show'; if (Mascot.on()) Mascot.say('Mabuhay!'); break;
     case 'home-pin': S.sel = d.id; location.hash = '#locations'; break;
     case 'select-plan':
     case 'rent-at': {
+      if (LIVE) { launchSheet(d.id); break; }
       if (activeRental()) { toast('You already have an umbrella out. Return it first.'); navigate('rentals'); break; }
       rentSheet(d.id && kiosk(d.id) ? d.id : null); break;
+    }
+    case 'launch-on':
+    case 'launch-toggle': {
+      if (!S.user || !Cloud.on) { toast(Cloud.offMsg()); break; }
+      const want = a === 'launch-on' || S.user.launch === false;
+      t.disabled = true;
+      try { S.user = await Cloud.setLaunch(want); toast(want ? 'You’re on the launch list.' : 'Launch news is off.'); }
+      catch (err) { toast(err.message); }
+      closeModal(true); renderView(true); break;
     }
     case 'ask-open': e.preventDefault(); openHelper(); break;
     case 'ask-chip': askSend(d.q); break;
@@ -2780,7 +2957,7 @@ const askFace = () => `<span class="ask-face" aria-hidden="true">${Mascot.svg}</
 const askGo = (id, label) => `<a class="btn secondary sm" href="#${id}" data-go="${id}">${label}</a>`;
 function askChips() {
   const r = S.user ? activeRental() : null;
-  const qs = [r ? ['How much do I owe now?', 'Magkano na ang utang ko?'] : ['How do I rent an umbrella?', 'Paano magrenta ng payong?'], ['How much for 2 hours?', 'Magkano para sa 2 oras?'],
+  const qs = [LIVE ? ['When does SILONG launch?', 'Kailan magbubukas ang SILONG?'] : r ? ['How much do I owe now?', 'Magkano na ang utang ko?'] : ['How do I rent an umbrella?', 'Paano magrenta ng payong?'], ['How much for 2 hours?', 'Magkano para sa 2 oras?'],
     ['Where is the nearest Silongan?', 'Saan ang pinakamalapit na Silongan?'], ['Will it rain today?', 'Uulan ba ngayon?'], ['What if I lose it?', 'Paano kung mawala ko?'], ['Can I pay with cash?', 'Puwede bang cash?']];
   return qs.map(([en, tl]) => { const q = bi(en, tl); return `<button class="ask-chip" type="button" data-action="ask-chip" data-q="${esc(q)}">${esc(q)}</button>`; }).join('');
 }
@@ -2799,7 +2976,16 @@ function askAnswer(raw) {
   const has = (...w) => w.some((x) => q.includes(x));
   const r = S.user ? activeRental() : null;
   const go = (id, en, tl) => askGo(id, bi(en, tl));
+  const demoLink = () => `<a class="btn secondary sm" href="${DEMO_URL}" target="_blank" rel="noopener">${bi('Try the demo', 'Subukan ang demo')}</a>`;
+  if (LIVE && has('launch', 'kailan', 'magbubukas', 'when will', 'when does', 'when do you', 'when can i', 'when is', 'open yet', 'available yet', 'is it open', 'are you open', 'bukas na ba', 'pwede na ba', 'puwede na ba', 'start renting'))
+    return bi('SILONG is launching soon. The first three Silongans are planned around Bonifacio High Street, and renting and payments open the day the machines are installed. ',
+      'Malapit nang magbukas ang SILONG. Ang unang tatlong Silongan ay nakaplano sa paligid ng Bonifacio High Street, at magbubukas ang pag-renta at bayad sa araw na maikabit ang mga makina. ')
+      + (!S.user ? bi('Create an account and we’ll email you when they open.', 'Gumawa ng account at mag-e-email kami pagbukas nila.')
+        : S.user.launch !== false ? bi('You’re on the launch list, so you’ll hear first.', 'Nasa launch list ka na, kaya ikaw ang unang makakaalam.')
+        : bi('Turn on launch news in My Account to hear first.', 'I-on ang launch news sa My Account para ikaw ang unang makaalam.'))
+      + `<div>${S.user ? go('account', 'My Account', 'My Account') : go('register', 'Create an account', 'Gumawa ng account')} ${demoLink()}</div>`;
   if (has(' owe ', ' so far ', 'my rental', 'current charge', 'how long have i', 'magkano na', 'utang', 'my umbrella', 'payong ko', 'singil ko')) {
+    if (LIVE) return bi('Rentals start when SILONG launches, so there’s nothing to pay yet.', 'Magsisimula ang mga renta pagbukas ng SILONG, kaya wala ka pang babayaran.') + `<div>${go('rates', 'See prices', 'Tingnan ang presyo')}</div>`;
     if (!r) return bi('You don’t have an umbrella out right now. Scan the QR at any Silongan to start.', 'Wala kang hiniram na payong ngayon. I-scan ang QR sa kahit anong Silongan para magsimula.') + `<div>${go('locations', 'Find a Silongan', 'Maghanap ng Silongan')}</div>`;
     const used = nowOf(r) - r.startedAt;
     return (r.payg ? bi(`You’ve had it for <b>${fmtDurShort(used)}</b>: ${paygQuote(used).sub}. Return it to any Silongan and that’s what you pay.`, `<b>${fmtDurShort(used)}</b> mo na itong hawak: ${paygQuote(used).sub}. Ibalik sa kahit anong Silongan at iyan ang babayaran mo.`)
@@ -2833,26 +3019,35 @@ function askAnswer(raw) {
     return bi('Return it to <b>any</b> Silongan, not just the one you took it from. Slot it in, wait for the machine to confirm, and you’re charged once for the time you used.',
       'Ibalik ito sa <b>kahit anong</b> Silongan, hindi lang sa pinagkunan mo. Isuksok ito, hintaying kumpirmahin ng makina, at isang beses ka lang sisingilin para sa oras na ginamit mo.') + `<div>${go('locations', 'See all Silongans', 'Lahat ng Silongan')}</div>`;
   if (has(' rent', 'borrow', 'hiram', 'paano', 'magrenta', 'umupa', 'how do i', 'how to', 'get an umbrella', 'get one', ' scan', ' qr', 'unlock'))
-    return bi('Easy: find a Silongan, scan the QR code on the machine with this app, and take the umbrella that unlocks. No plan to pick. Return it to any Silongan when you’re done.',
-      'Madali lang: maghanap ng Silongan, i-scan ang QR code sa makina gamit ang app na ito, at kunin ang payong na lalabas. Walang plan na pipiliin. Ibalik ito sa kahit anong Silongan pagkatapos.')
+    return (LIVE ? bi('Once SILONG launches, it’s easy: find a Silongan, scan the QR code on the machine with this app, and take the umbrella that unlocks. Return it to any Silongan when you’re done.',
+      'Pagbukas ng SILONG, madali lang: maghanap ng Silongan, i-scan ang QR code sa makina gamit ang app na ito, at kunin ang payong na lalabas. Ibalik ito sa kahit anong Silongan pagkatapos.')
+      : bi('Easy: find a Silongan, scan the QR code on the machine with this app, and take the umbrella that unlocks. No plan to pick. Return it to any Silongan when you’re done.',
+      'Madali lang: maghanap ng Silongan, i-scan ang QR code sa makina gamit ang app na ito, at kunin ang payong na lalabas. Walang plan na pipiliin. Ibalik ito sa kahit anong Silongan pagkatapos.'))
       + `<div>${go('locations', 'Find a Silongan', 'Maghanap ng Silongan')} ${go('how', 'How it works', 'Paano ito gumagana')}</div>`;
   if (has('rain', 'ulan', 'weather', 'panahon', ' sun', ' init', ' hot ', ' uv', 'heat', 'mainit', 'bagyo', 'storm', 'typhoon'))
     return `${askWeather()}<div>${go('home', 'Today in BGC', 'Ngayon sa BGC')}</div>`;
   if (has('hours', ' open', 'bukas', 'close', 'sarado', 'stock', 'available', 'how many umbrellas', ' ilan '))
-    return bi('Opening hours and live umbrella stock aren’t connected yet in this prototype. Once the machines are linked, each Silongan will show both.',
-      'Hindi pa konektado sa prototype na ito ang oras ng bukas at ang bilang ng payong. Kapag naka-link na ang mga makina, makikita mo pareho sa bawat Silongan.') + `<div>${go('locations', 'Silongan details', 'Detalye ng Silongan')}</div>`;
+    return (LIVE ? bi('Opening hours and live umbrella counts will show for each Silongan once the machines are installed.', 'Makikita ang oras ng bukas at ang bilang ng payong sa bawat Silongan kapag naikabit na ang mga makina.')
+      : bi('Opening hours and live umbrella stock aren’t connected yet in this prototype. Once the machines are linked, each Silongan will show both.',
+      'Hindi pa konektado sa prototype na ito ang oras ng bukas at ang bilang ng payong. Kapag naka-link na ang mga makina, makikita mo pareho sa bawat Silongan.')) + `<div>${go('locations', 'Silongan details', 'Detalye ng Silongan')}</div>`;
   if (has('where', 'saan', 'nasaan', 'location', 'nearest', 'malapit', ' near', 'machine', 'makina', 'silongan', ' map', 'mapa', 'bgc', 'high street'))
     return bi('There are 3 Silongans in BGC, all around Bonifacio High Street:', 'May 3 Silongan sa BGC, lahat malapit sa Bonifacio High Street:')
       + `<ul class="ask-list">${KIOSKS.map((k) => `<li><b>Silongan ${k.id}</b>: ${esc(k.title)}</li>`).join('')}</ul>`
       + bi('The map can also find the one nearest you.', 'Kaya rin ng mapa na hanapin ang pinakamalapit sa iyo.') + `<div>${go('locations', 'Open the map', 'Buksan ang mapa')}</div>`;
   if (has('account', 'password', 'delete', 'privacy', ' data', 'email', 'mobile number', 'log out', 'logout'))
-    return bi('You can change your name, email, mobile number and password in My Account, or delete the account there. SILONG uses your details only to run your rentals.',
-      'Mapapalitan mo ang pangalan, email, mobile number, at password sa My Account, at doon mo rin mabubura ang account. Ginagamit lang ng SILONG ang detalye mo para sa mga renta mo.') + `<div>${go('account', 'My Account', 'My Account')}</div>`;
+    return (LIVE ? bi('In My Account you can change your name, mobile number and password, turn launch news on or off, or delete the account. SILONG uses your details only for your account, support and launch news. To change your email, message Customer support.',
+      'Sa My Account, mapapalitan mo ang pangalan, mobile number, at password, ma-o-on o ma-o-off ang launch news, o mabubura ang account. Ginagamit lang ng SILONG ang detalye mo para sa account, support, at launch news. Para palitan ang email, mag-message sa Customer support.')
+      : bi('You can change your name, email, mobile number and password in My Account, or delete the account there. SILONG uses your details only to run your rentals.',
+      'Mapapalitan mo ang pangalan, email, mobile number, at password sa My Account, at doon mo rin mabubura ang account. Ginagamit lang ng SILONG ang detalye mo para sa mga renta mo.')) + `<div>${go('account', 'My Account', 'My Account')}</div>`;
   if (has('who are you', 'sino ka', 'kuya silong', 'are you a bot', 'are you ai', ' ai ', 'robot'))
-    return bi('Ako si Kuya Silong, SILONG’s helper. I answer from SILONG’s help pages and your demo rental, right here on your device. For anything I can’t answer, customer support can help.',
-      'Ako si Kuya Silong, ang katulong ng SILONG. Sumasagot ako mula sa help pages ng SILONG at sa demo rental mo, dito mismo sa device mo. Kung hindi ko masagot, makakatulong ang customer support.') + `<div>${go('support', 'Customer support', 'Customer support')}</div>`;
+    return (LIVE ? bi('Ako si Kuya Silong, SILONG’s helper. I answer from SILONG’s help pages, right here on your device. For anything I can’t answer, customer support can help.',
+      'Ako si Kuya Silong, ang katulong ng SILONG. Sumasagot ako mula sa help pages ng SILONG, dito mismo sa device mo. Kung hindi ko masagot, makakatulong ang customer support.')
+      : bi('Ako si Kuya Silong, SILONG’s helper. I answer from SILONG’s help pages and your demo rental, right here on your device. For anything I can’t answer, customer support can help.',
+      'Ako si Kuya Silong, ang katulong ng SILONG. Sumasagot ako mula sa help pages ng SILONG at sa demo rental mo, dito mismo sa device mo. Kung hindi ko masagot, makakatulong ang customer support.')) + `<div>${go('support', 'Customer support', 'Customer support')}</div>`;
   if (has(' real ', 'demo', 'prototype', 'fake', 'simulat', ' test '))
-    return bi('This is a prototype: rentals, payments and the machines are simulated. No money moves and no umbrella is released, so try anything you like.',
+    return LIVE ? bi('This is the real SILONG app, before launch. Accounts are real; renting and payments open when the machines are installed. To see how renting will work, try the demo.',
+      'Ito ang totoong SILONG app, bago ang launch. Totoo ang mga account; magbubukas ang pag-renta at bayad kapag naikabit na ang mga makina. Para makita kung paano gagana ang pag-renta, subukan ang demo.') + `<div>${demoLink()}</div>`
+      : bi('This is a prototype: rentals, payments and the machines are simulated. No money moves and no umbrella is released, so try anything you like.',
       'Prototype ito: simulated ang mga renta, bayad, at makina. Walang perang gumagalaw at walang payong na lumalabas, kaya subukan mo lahat.');
   if (has('thank', 'salamat', ' ty '))
     return 'Walang anuman! Ingat sa ulan, at sa init din.';
@@ -2887,7 +3082,7 @@ function openHelper() {
     <div class="ask-log" id="ask-log" role="log" aria-live="polite"></div>
     <div class="ask-chips" id="ask-chips" aria-label="Suggested questions"></div>
     <form class="ask-form" id="ask-form" autocomplete="off"><input class="input" id="ask-input" aria-label="Your question" placeholder="Magtanong… e.g. How much for 2 hours?" maxlength="200" enterkeyhint="send" ${focusInput}><button class="btn" type="submit">Send</button></form>
-    <p class="muted small" style="margin:0">Kuya Silong answers from SILONG’s help pages and your demo rental, right on this device.</p>` });
+    <p class="muted small" style="margin:0">${L('Kuya Silong answers from SILONG’s help pages and your demo rental, right on this device.', 'Kuya Silong answers from SILONG’s help pages, right on this device.')}</p>` });
   askRender();
 }
 document.addEventListener('submit', (e) => {
@@ -2988,7 +3183,7 @@ Mascot.init();
 /* Load the chosen language and (if connected) the account first, so the first screen is already right. */
 Promise.all([I18N.init(), Cloud.init()]).catch(() => {}).finally(() => { route(); Stats.event('visit'); Alerts.sync(); Alerts.check(); });
 /* Offline support and instant repeat visits */
-if ('serviceWorker' in navigator && isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => { /* offline mode unavailable */ });
+if ('serviceWorker' in navigator && isSecureContext) navigator.serviceWorker.register(LIVE ? 'sw.js?ns=' + NS : 'sw.js').catch(() => { /* offline mode unavailable */ });
 })();
 
 </script>
