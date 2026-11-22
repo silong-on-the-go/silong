@@ -5,11 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>SILONG Shelter on the Go</title>
-<link rel="icon" type="image/webp" href="img/2724515ba7.webp">
-<meta name="theme-color" content="#002d5b">
+<link rel="icon" type="image/png" href="img/2724515ba7.png">
+<meta name="theme-color" content="#f2f5fa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#08111f" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="SILONG · Shelter on the Go">
 <meta property="og:description" content="Smart umbrella rental in BGC. Scan, take an umbrella, return it to any Silongan. Pay only for the time you use.">
-<meta property="og:image" content="img/5f47a2806a.webp">
+<meta property="og:image" content="https://silong-on-the-go.github.io/silong/img/5f47a2806a.png">
+<meta property="og:url" content="https://silong-on-the-go.github.io/silong/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="img/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SILONG">
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="SILONG smart umbrella rental: find a Silongan vending machine in BGC, view rates, and manage rentals. Front-end prototype.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -235,7 +245,7 @@ html[data-theme="dark"] .brandmark, :root:not([data-theme="light"]) .brandmark {
 .tile-mosaic { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .tile-mosaic img { width: 100%; aspect-ratio: 1; border-radius: 22px; object-fit: cover; box-shadow: var(--shadow); }
 .tile-mosaic .wide { grid-column: span 3; aspect-ratio: auto; height: 76px; object-fit: cover; object-position: top; }
-.pattern-strip { height: 12px; background: url(img/581e05ef1a.webp) 0 0 / 48px 48px repeat-x; border-radius: 6px; }
+.pattern-strip { height: 12px; background: url(img/581e05ef1a.png) 0 0 / 48px 48px repeat-x; border-radius: 6px; }
 .rain-bg { position: relative; }
 .back-link { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; text-decoration: none; min-height: 40px; }
 .back-link .ic { transform: rotate(180deg); }
@@ -572,7 +582,7 @@ td.r, th.r { text-align: right; font-variant-numeric: tabular-nums; white-space:
 .cardface { position: relative; overflow: hidden; background: var(--hero-bg); color: var(--hero-ink); border-color: transparent; padding-bottom: 34px; box-shadow: 0 2px 4px rgba(0, 20, 50, .25), 0 16px 32px rgba(0, 20, 50, .22); }
 .cardface .eyebrow { color: var(--hero-ink-2); }
 .cardface .bal-amt { color: var(--hero-ink); text-shadow: 0 1px 0 rgba(0, 0, 0, .25); }
-.cardface::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 9px; background: url(img/581e05ef1a.webp) 0 0 / 36px 36px repeat-x; }
+.cardface::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 9px; background: url(img/581e05ef1a.png) 0 0 / 36px 36px repeat-x; }
 .cardface::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, .13) 50%, transparent 62%); animation: sweep 9s ease-in-out infinite; }
 .cardface > * { position: relative; z-index: 1; }
 .cardface .btn:not(.secondary) { background: #fff; color: #002d5b; }
@@ -959,6 +969,65 @@ body.authing::before { display: none; }
 .auth-actions .alt { text-align: center; margin: 4px 0 0; }
 .card.empty .btn .ic { width: 18px; height: 18px; }
 
+/* ---------- Ask Kuya Silong: the built-in helper ---------- */
+.mascot-dock { display: flex; align-items: center; justify-content: flex-end; }
+.ask-dock { width: calc(100% - 100px); display: grid; gap: 2px; text-align: left; padding: 10px 12px; border-radius: 14px; border: 1.5px dashed var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font: inherit; }
+.ask-dock b { font-size: .9rem; }
+.ask-dock span { font-size: .8rem; color: var(--link); font-weight: 600; }
+.ask-dock:hover, .ask-chip:hover { border-color: var(--link); }
+body.no-mascot .ask-dock { width: 100%; }
+#mascot.docked .m-bubble { left: 0; transform: none; }
+#mascot.docked .m-bubble::after { left: 36px; }
+.ask-top { width: 42px; height: 42px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); display: grid; place-items: center; cursor: pointer; }
+.ask-face { width: 42px; height: 42px; flex: none; display: grid; place-items: center; border-radius: 13px; background: var(--info-bg); overflow: hidden; }
+.ask-face svg { width: 48px; height: 48px; margin-top: 8px; }
+.ask-log { display: grid; gap: 10px; max-height: min(46vh, 440px); overflow-y: auto; padding: 2px; overscroll-behavior: contain; }
+.ask-msg { display: flex; gap: 8px; align-items: flex-end; }
+.ask-msg.me { justify-content: flex-end; }
+.ask-msg .ask-face { width: 30px; height: 30px; border-radius: 10px; }
+.ask-msg .ask-face svg { width: 36px; height: 36px; margin-top: 6px; }
+.ask-msg .bub { max-width: 85%; padding: 10px 12px; border-radius: 16px; line-height: 1.45; font-size: .95rem; overflow-wrap: anywhere; }
+.ask-msg.kuya .bub { background: var(--surface-2); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
+.ask-msg.me .bub { background: var(--btn); color: var(--btn-ink); border-bottom-right-radius: 6px; }
+.ask-msg .bub > div { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+.ask-list { margin: 6px 0; padding-left: 18px; }
+.ask-typing { opacity: .7; font-style: italic; }
+.ask-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ask-chip { border: 1px solid var(--line); background: var(--surface); color: var(--link); border-radius: 999px; padding: 8px 12px; min-height: 36px; font: inherit; font-size: .84rem; font-weight: 600; cursor: pointer; }
+.ask-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.ask-card { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 14px; align-items: center; text-align: left; width: 100%; cursor: pointer; font: inherit; color: var(--ink); }
+.ask-card .ask-face { width: 52px; height: 52px; }
+.ask-card .ask-face svg { width: 60px; height: 60px; margin-top: 10px; }
+.ask-card small { display: block; color: var(--ink-2); margin-top: 2px; }
+
+/* ---------- phones and tablets ---------- */
+/* 16px+ text in fields stops iPhone and iPad from zooming the page when a field is tapped */
+.input, select.input, textarea.input { font: inherit; font-size: max(16px, 1rem); }
+/* status chips wrap instead of pushing the account page wider than the screen (1024-wide tablets) */
+.status-grid .chip { white-space: normal; text-align: center; flex: 0 1 auto; max-width: 58%; }
+/* section links like "All rentals" get a finger-sized tap area without changing the layout */
+.sec-head > a.small { padding: 8px 6px; margin: -8px -6px; }
+/* narrow sunrise cards (phones, tablets in portrait): drop the middle label so the sunset time isn't cut off */
+.arc-wrap { container-type: inline-size; }
+@container (max-width: 420px) { .sun-row > span.sky-soft { display: none; } }
+/* tablets in portrait: use the width instead of one long column */
+@media (min-width: 760px) and (max-width: 1023.98px) {
+  .two-col { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  .loc-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .loc-list > .notice { grid-column: 1 / -1; }
+}
+@media (min-width: 900px) and (max-width: 1023.98px) { .rates { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* the bottom tab bar stays thumb-sized on wide screens instead of stretching edge to edge */
+@media (min-width: 700px) { .tabbar { padding-inline: max(8px, calc((100% - 620px) / 2)); } }
+/* short screens with the sidebar (1366x768 laptops, iPads held sideways): tighten it so it fits */
+@media (min-width: 1024px) and (max-height: 860px) {
+  .side { gap: 12px; }
+  .side .brandmark { width: 66%; }
+  .nav-link { min-height: 38px; font-size: .9rem; }
+  .nav-sep { margin: 4px 6px; }
+  .mascot-dock { height: 92px; }
+}
+
 /* ---------- PC: use the whole screen, edge to edge ---------- */
 @media (min-width: 1024px) {
   .shell { max-width: 2400px; padding-inline: clamp(20px, 2.2vw, 44px); column-gap: clamp(28px, 2.4vw, 48px); }
@@ -1070,11 +1139,11 @@ const PLANS = [
    Replace lat/lng with surveyed vending machine coordinates before launch. */
 const KIOSKS = [
   { id: 'A', name: 'SILONGAN 1', loc: 'Location A', title: 'One Bonifacio High Street / 5th Avenue Pedestrian Plaza',
-    address: '5th Avenue corner 28th Street perimeter, BGC, Taguig, Philippines', lat: 14.5519, lng: 121.0473, emblem: 'img/b3e5dbed33.webp' },
+    address: '5th Avenue corner 28th Street perimeter, BGC, Taguig, Philippines', lat: 14.5519, lng: 121.0473, emblem: 'img/b3e5dbed33.png' },
   { id: 'B', name: 'SILONGAN 2', loc: 'Location B', title: 'Bonifacio High Street Central – 7th Avenue Promenade',
-    address: '7th Avenue corner High Street Promenade, BGC, Taguig, Philippines', lat: 14.5524, lng: 121.0489, emblem: 'img/2724515ba7.webp' },
+    address: '7th Avenue corner High Street Promenade, BGC, Taguig, Philippines', lat: 14.5524, lng: 121.0489, emblem: 'img/2724515ba7.png' },
   { id: 'C', name: 'SILONGAN 3', loc: 'Location C', title: 'Bonifacio Stopover / 31st Street Corridor',
-    address: '31st Street corner 5th Avenue, BGC, Taguig, Philippines', lat: 14.5542, lng: 121.0468, emblem: 'img/d87dedd030.webp' }
+    address: '31st Street corner 5th Avenue, BGC, Taguig, Philippines', lat: 14.5542, lng: 121.0468, emblem: 'img/d87dedd030.png' }
 ];
 const CENTER = {
   name: 'BGC Portal & 3D LED Screen',
@@ -1719,7 +1788,7 @@ function cardFoot() {
 function viewHome() {
   const u = S.user, r = activeRental(), first = u.name.trim().split(/\s+/)[0];
   const stat = r ? `${ic('clock', 'sm')} Umbrella out · <b>${esc(cdInfo(r).main)}</b>` : `${ic('umbrella', 'sm')} No umbrella out`;
-  const tiles = [['locations', 'img/b3e5dbed33.webp', 'Find a Silongan', '3 machines in BGC'], ['rates', 'img/2724515ba7.webp', 'Prices', '₱15 first hour'], ['rentals', 'img/eb52b0bc4b.webp', 'My rentals', 'Live charge and history'], ['how', 'img/d87dedd030.webp', 'How it works', 'Scan, take, return']];
+  const tiles = [['locations', 'img/b3e5dbed33.png', 'Find a Silongan', '3 machines in BGC'], ['rates', 'img/2724515ba7.png', 'Prices', '₱15 first hour'], ['rentals', 'img/eb52b0bc4b.png', 'My rentals', 'Live charge and history'], ['how', 'img/d87dedd030.png', 'How it works', 'Scan, take, return']];
   return `<div class="view home">
     <section class="hero">
       <span class="eyebrow">SILONG · Shelter on the Go</span>
@@ -1804,10 +1873,10 @@ function locCard(k) {
     </div></article>`;
 }
 const ROADMAP = [
-  { id: 'more', img: 'img/b3e5dbed33.webp', tag: 'Planned', title: 'More Silongans across BGC', text: 'More vending machine spots are being considered around the district. Locations are not final.' },
-  { id: 'stock', img: 'img/d87dedd030.webp', tag: 'Needs connection', title: 'Live umbrella availability', text: 'See how many umbrellas are ready at each machine, once the vending machines are connected.' },
-  { id: 'pay', img: 'img/2724515ba7.webp', tag: 'Simulated', title: 'GCash, Maya and card linking', text: 'Link a payment method once and every return is charged automatically. Simulated in this prototype.' },
-  { id: 'rain', img: 'img/eb52b0bc4b.webp', tag: 'Idea', title: 'Rain and heat alerts', text: 'A heads-up when rain or strong sun is coming near your nearest Silongan.' }
+  { id: 'more', img: 'img/b3e5dbed33.png', tag: 'Planned', title: 'More Silongans across BGC', text: 'More vending machine spots are being considered around the district. Locations are not final.' },
+  { id: 'stock', img: 'img/d87dedd030.png', tag: 'Needs connection', title: 'Live umbrella availability', text: 'See how many umbrellas are ready at each machine, once the vending machines are connected.' },
+  { id: 'pay', img: 'img/2724515ba7.png', tag: 'Simulated', title: 'GCash, Maya and card linking', text: 'Link a payment method once and every return is charged automatically. Simulated in this prototype.' },
+  { id: 'rain', img: 'img/eb52b0bc4b.png', tag: 'Idea', title: 'Rain and heat alerts', text: 'A heads-up when rain or strong sun is coming near your nearest Silongan.' }
 ];
 const notified = () => store.get('silong.notify', []);
 function roadCard(r, i) {
@@ -1911,8 +1980,8 @@ function vendingFig() {
       <g class="vf-cloud" style="--d:${k ? 16 : 12}s"><ellipse cx="${x + 48}" cy="975" rx="24" ry="11" fill="#fff"/><ellipse cx="${x + 62}" cy="967" rx="16" ry="12" fill="#fff"/><ellipse cx="${x + 34}" cy="978" rx="14" ry="8" fill="#fff"/></g>
       <path d="M${x} 1040c28-8 50 16 88 14 40-2 60-24 90-22 20 1 40 10 57 14v36H${x}z" fill="#c4e07f"/>
       <path d="M${x} 1062c30-12 56 10 92 8 44-3 62-22 96-12 20 6 34 16 47 20v14H${x}z" fill="#8aa800"/></g></g>`;
-  const tiles = [['emblem-eye', 0], ['emblem-kiosk', 170], ['emblem-people', 340], ['emblem-hat', 510]].map(([n, x]) => `<image href="${({"emblem-eye":"img/d87dedd030.webp","emblem-kiosk":"img/b3e5dbed33.webp","emblem-people":"img/eb52b0bc4b.webp","emblem-hat":"img/2724515ba7.webp"})[n]}" x="${x}" y="0" width="170" height="170"/>`).join('');
-  const base = [0, 1, 2, 3].map((i) => `<image href="img/581e05ef1a.webp" x="${77 + i * 131}" y="1515" width="131" height="132" preserveAspectRatio="none"/>`).join('');
+  const tiles = [['emblem-eye', 0], ['emblem-kiosk', 170], ['emblem-people', 340], ['emblem-hat', 510]].map(([n, x]) => `<image href="${({"emblem-eye":"img/d87dedd030.png","emblem-kiosk":"img/b3e5dbed33.png","emblem-people":"img/eb52b0bc4b.png","emblem-hat":"img/2724515ba7.png"})[n]}" x="${x}" y="0" width="170" height="170"/>`).join('');
+  const base = [0, 1, 2, 3].map((i) => `<image href="img/581e05ef1a.png" x="${77 + i * 131}" y="1515" width="131" height="132" preserveAspectRatio="none"/>`).join('');
   return `<figure class="machine-fig"><svg viewBox="0 0 678 1670" role="img" aria-label="Illustration of the SILONG umbrella vending machine: emblem banner and wordmark on top, a window of folded umbrellas, four colour buttons, coin and contactless payment icons, two screens, a slot and a pickup tray">
     <defs>
       <linearGradient id="vf-frame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#d9d9d9"/><stop offset="1" stop-color="#b4b4b4"/></linearGradient>
@@ -1923,7 +1992,7 @@ function vendingFig() {
     <ellipse cx="339" cy="1650" rx="300" ry="26" fill="#000" opacity=".16"/>
     ${tiles}
     <rect x="77" y="169" width="524" height="1346" fill="#fff" stroke="#d3d9e4" stroke-width="3"/>
-    <image href="img/5fa28b0e07.webp" x="93" y="185" width="494" height="101"/>
+    <image href="img/5fa28b0e07.png" x="93" y="185" width="494" height="101"/>
     <rect x="98" y="344" width="485" height="446" rx="26" fill="url(#vf-frame)"/><rect x="117" y="362" width="448" height="409" rx="6" fill="#808080"/>
     ${umb}
     <rect x="93" y="837" width="224" height="58" rx="29" fill="url(#vf-pill)"/>${btn}
@@ -2005,6 +2074,7 @@ function viewSupport() {
   const u = S.user;
   return `<div class="view">
     ${pageHead('Customer support', 'Find a quick answer or send us your concern.')}
+    <button class="card ask-card" type="button" data-action="ask-open"><span class="ask-face" aria-hidden="true">${Mascot.svg}</span><span><b>Ask Kuya Silong</b><small>Quick answers about prices, renting, returns, lost umbrellas and today’s weather.</small></span>${ic('arrow', 'sm')}</button>
     <section class="stack"><h2>What do you need help with?</h2>
       <div class="topics">${TOPICS.map((t) => `<button class="topic" type="button" data-action="topic" data-cat="${esc(t[0])}">${ic(t[1])}${t[0]}</button>`).join('')}</div></section>
     <section class="stack"><h2>Frequently asked questions</h2>
@@ -2039,7 +2109,7 @@ function viewAccount() {
         <div class="card"><div class="row" style="flex-wrap:nowrap;gap:16px"><div class="avatar lg" aria-hidden="true">${esc(initials(u.name))}</div>
           <div style="min-width:0"><h2 style="overflow-wrap:anywhere">${esc(u.name)}</h2><p class="muted small">Member since ${new Date(u.createdAt).toLocaleDateString('en-PH', { dateStyle: 'medium' })}</p></div></div>
           <dl class="kv" style="margin-top:12px"><div><dt>Email</dt><dd>${esc(u.email)}</dd></div><div><dt>Mobile</dt><dd class="num">${esc(u.mobile)}</dd></div></dl></div>
-        <div class="card"><div class="row between" style="flex-wrap:nowrap;gap:14px"><div style="min-width:0"><h3>Kuya Silong, the mascot</h3><p class="muted small">A little helper with his own spot in the sidebar. Off by default on phones.</p></div>
+        <div class="card"><div class="row between" style="flex-wrap:nowrap;gap:14px"><div style="min-width:0"><h3>Kuya Silong, the mascot</h3><p class="muted small">He answers questions about prices, returns and the weather. Click him in the sidebar, or the chat button on phones. The walking mascot is off by default on phones.</p></div>
           <button class="btn secondary sm" type="button" data-action="mascot-toggle">${Mascot.on() ? 'Hide' : 'Show'}</button></div></div>
         <form class="card form" id="profile-form" novalidate data-form="profile"><h3>Edit profile</h3>
           ${field({ id: 'pf-name', label: 'Full name', value: u.name, autocomplete: 'name' })}
@@ -2076,8 +2146,8 @@ function authShell(inner, mode) {
       <span class="cloud c1" aria-hidden="true"></span><span class="cloud c2" aria-hidden="true"></span>
       <div class="scene">
         <div class="umb" aria-hidden="true"><div class="dry"></div>${umbrellaSVG()}</div>
-        <div class="brandplate"><img src="img/5f47a2806a.webp" alt="SILONG" width="900" height="467"></div>
-        <div class="tiles" aria-hidden="true"><img src="img/d87dedd030.webp" alt=""><img src="img/b3e5dbed33.webp" alt=""><img src="img/eb52b0bc4b.webp" alt=""><img src="img/2724515ba7.webp" alt=""></div>
+        <div class="brandplate"><img src="img/5f47a2806a.png" alt="SILONG" width="900" height="467"></div>
+        <div class="tiles" aria-hidden="true"><img src="img/d87dedd030.png" alt=""><img src="img/b3e5dbed33.png" alt=""><img src="img/eb52b0bc4b.png" alt=""><img src="img/2724515ba7.png" alt=""></div>
       </div>
       <div class="pattern-strip stage-strip" aria-hidden="true"></div>
     </section>
@@ -2128,14 +2198,14 @@ function buildShell() {
   document.body.classList.remove('authing');
   $('#app').innerHTML = `<div class="shell">
     <aside class="side" aria-label="Sidebar">
-      <a class="brandmark" href="#home" data-go="home" aria-label="SILONG home"><img src="img/5f47a2806a.webp" alt="SILONG" width="900" height="467"></a>
+      <a class="brandmark" href="#home" data-go="home" aria-label="SILONG home"><img src="img/5f47a2806a.png" alt="SILONG" width="900" height="467"></a>
       <nav aria-label="Main">${NAV.map((n, i) => `${n.id === 'how' ? '<div class="nav-sep"></div>' : ''}<a class="nav-link" href="#${n.id}" data-go="${n.id}" data-nav="${n.id}">${ic(n.icon)}${n.label}</a>`).join('')}</nav>
-      <div class="stack" style="gap:10px"><div class="mascot-dock" aria-hidden="true"></div><button class="bal-pill block" type="button" data-go="wallet" aria-label="Payment and credit">${ic('wallet', 'sm')}<span>Credit</span><b class="num" data-balance>${peso(balance())}</b></button>
+      <div class="stack" style="gap:10px"><div class="mascot-dock"><button class="ask-dock" type="button" data-action="ask-open"><b>May tanong?</b><span>Ask Kuya Silong</span></button></div><button class="bal-pill block" type="button" data-go="wallet" aria-label="Payment and credit">${ic('wallet', 'sm')}<span>Credit</span><b class="num" data-balance>${peso(balance())}</b></button>
       <div class="side-user"><div class="avatar" aria-hidden="true">${esc(initials(u.name))}</div><div><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div></div></div>
     </aside>
     <div style="min-width:0">
-      <header class="top"><a class="brandmark" href="#home" data-go="home" aria-label="SILONG home"><img src="img/5f47a2806a.webp" alt="SILONG" width="900" height="467"></a>
-        <div class="row" style="gap:8px;flex-wrap:nowrap"><button class="bal-pill" type="button" data-go="wallet" aria-label="My balance">${ic('wallet', 'sm')}<b class="num" data-balance>${peso(balance())}</b></button>
+      <header class="top"><a class="brandmark" href="#home" data-go="home" aria-label="SILONG home"><img src="img/5f47a2806a.png" alt="SILONG" width="900" height="467"></a>
+        <div class="row" style="gap:8px;flex-wrap:nowrap"><button class="ask-top" type="button" data-action="ask-open" aria-label="Ask Kuya Silong">${ic('chat')}</button><button class="bal-pill" type="button" data-go="wallet" aria-label="My balance">${ic('wallet', 'sm')}<b class="num" data-balance>${peso(balance())}</b></button>
         <button class="avatar" type="button" data-go="account" aria-label="My account">${esc(initials(u.name))}</button></div></header>
       <main id="main" tabindex="-1"><div id="view-host"></div></main>
     </div>
@@ -2242,7 +2312,7 @@ document.addEventListener('click', async (e) => {
     case 'open-terms': e.preventDefault(); openModal({ label: 'Terms and Conditions', html: `<div class="modal-head"><h2>Terms and Conditions</h2><button class="icon-btn" type="button" data-close aria-label="Close">${ic('x')}</button></div>${termsBody(false)}` }); break;
     case 'more':
       openModal({ label: 'More', html: `<div class="modal-head"><h2>More</h2><button class="icon-btn" type="button" data-close aria-label="Close">${ic('x')}</button></div>
-        <div class="more-list">${['wallet', 'rates', 'how', 'terms', 'support'].map((id) => { const n = NAV.find((x) => x.id === id); return `<button type="button" data-go="${id}">${ic(n.icon)}${n.label}</button>`; }).join('')}</div>` }); break;
+        <div class="more-list">${['wallet', 'rates', 'how', 'terms', 'support'].map((id) => { const n = NAV.find((x) => x.id === id); return `<button type="button" data-go="${id}">${ic(n.icon)}${n.label}</button>`; }).join('')}<button type="button" data-action="ask-open">${ic('chat')}Ask Kuya Silong</button></div>` }); break;
     case 'logout':
       if (await confirmDialog({ title: 'Log out of SILONG?', body: '<p>You can log back in anytime with your email and password.</p>', confirm: 'Log out' })) { Auth.logout(); S.user = null; S.shell = false; navigate('welcome'); }
       break;
@@ -2256,6 +2326,8 @@ document.addEventListener('click', async (e) => {
       if (activeRental()) { toast('You already have an umbrella out. Return it first.'); navigate('rentals'); break; }
       rentSheet(d.id && kiosk(d.id) ? d.id : null); break;
     }
+    case 'ask-open': e.preventDefault(); openHelper(); break;
+    case 'ask-chip': askSend(d.q); break;
     case 'try-demo': {
       t.disabled = true; const n = uid();
       try { S.user = await Auth.register({ name: 'Guest', email: 'guest-' + n + '@demo.silong.ph', mobile: '09170000000', password: 'demo-' + n + '-1' }); }
@@ -2346,6 +2418,106 @@ document.addEventListener('input', (e) => { if (e.target.id === 'tu-custom') { $
 document.addEventListener('change', (e) => { if (e.target.name === 'tu-amt') { const c = $('#tu-custom'); if (c) c.value = ''; setErr('tu-custom', ''); } });
 
 
+/* ------------------------------ ASK KUYA SILONG ------------------------------ */
+/* A built-in helper. It answers from SILONG's help content and live data on this device (the current
+   rental and today's weather). No AI service and no API key: nothing leaves the browser. */
+const Ask = { log: [] };
+const askFace = () => `<span class="ask-face" aria-hidden="true">${Mascot.svg}</span>`;
+const askGo = (id, label) => `<a class="btn secondary sm" href="#${id}" data-go="${id}">${label}</a>`;
+function askChips() {
+  const r = S.user ? activeRental() : null;
+  return [r ? 'How much do I owe now?' : 'How do I rent an umbrella?', 'How much for 2 hours?', 'Where is the nearest Silongan?', 'Will it rain today?', 'What if I lose it?', 'Can I pay with cash?']
+    .map((q) => `<button class="ask-chip" type="button" data-action="ask-chip" data-q="${esc(q)}">${esc(q)}</button>`).join('');
+}
+function askWeather() {
+  const d = Wx.data;
+  if (Wx.status !== 'ok' || !d) { loadWeather(); return 'I can’t reach the weather service right now. Try again in a minute, or check Today in BGC on the Home page.'; }
+  const rain = d.pop != null ? `, with a ${d.pop}% chance of rain today` : '';
+  const tip = d.pop != null && d.pop >= 40 ? ' Rain is likely, so grab an umbrella at a Silongan.'
+    : d.uv != null && d.uv >= 6 ? ` Strong sun though (UV peak ${Math.round(d.uv)}), and an umbrella doubles as shade.`
+    : ' Looks fine, but the Silongans are there if the sky changes its mind.';
+  return `Right now it’s ${Math.round(d.temp)}°C in BGC and ${wxDescribe(d.code)[0].toLowerCase()}${rain}.${tip}`;
+}
+function askAnswer(raw) {
+  const q = ' ' + String(raw).toLowerCase().replace(/(\d)[.,](\d)/g, '$1§$2').replace(/[^\p{L}\p{N}₱§]+/gu, ' ').trim().replace(/§/g, '.') + ' ';
+  const has = (...w) => w.some((x) => q.includes(x));
+  const r = S.user ? activeRental() : null;
+  if (has(' owe ', ' so far ', 'my rental', 'current charge', 'how long have i', 'magkano na', 'utang', 'my umbrella')) {
+    if (!r) return `You don’t have an umbrella out right now. Scan the QR at any Silongan to start.<div>${askGo('locations', 'Find a Silongan')}</div>`;
+    const used = nowOf(r) - r.startedAt;
+    return r.payg ? `You’ve had it for <b>${fmtDurShort(used)}</b>: ${paygQuote(used).sub}. Return it to any Silongan and that’s what you pay.<div>${askGo('rentals', 'My rentals')}</div>`
+      : `${cdInfo(r).main}, ${cdInfo(r).sub}.<div>${askGo('rentals', 'My rentals')}</div>`;
+  }
+  const m = q.match(/ (\d+(?:\.\d+)?) ?(minutes?|mins?|hours?|hrs?|h|oras|days?|araw) /);
+  if (m) {
+    const n = parseFloat(m[1]), unit = m[2];
+    const mins = /^min/.test(unit) ? n : /^(day|araw)/.test(unit) ? n * 1440 : n * 60, cost = paygCost(mins * 60000);
+    return `For ${m[1]} ${unit} it’s <b>${pesoW(cost)}</b>${cost >= CAP ? ', the maximum, so the umbrella would be yours to keep' : ''}. You pay once, when you return it, for the time you actually used.<div>${askGo('rates', 'See all prices')}</div>`;
+  }
+  if (has('didn t', 'did not', 'didnt', 'walang lumabas', 'no umbrella came', 'not release', 'stuck', 'failed', ' error'))
+    return `If you scanned and no umbrella came out, nothing is charged. If you see a charge anyway, send the reference number to customer support and it’s refunded to your linked payment.<div>${askGo('support', 'Customer support')}</div>`;
+  if (has('lost', ' lose ', 'nawala', 'stolen', 'nanakaw', 'broken', ' broke', 'damage', 'sira', 'torn', 'punit'))
+    return `If you lose it, the most you’ll ever pay is <b>₱225</b> in total, the price of the umbrella. There’s no extra lost-umbrella fee. If it breaks, report it in the app: dirt is free, small repairs ₱50, bigger damage up to ₱150, and normal wear and tear is never charged.<div>${askGo('terms', 'Damage charges')} ${askGo('support', 'Report it')}</div>`;
+  if (has(' late', 'longer', 'keep it', 'overdue', 'extend', 'week', 'several days', 'huli', 'tagal'))
+    return `There’s no late fee. You keep paying for the time, at most <b>₱40 a day</b>, and the charge stops at <b>₱225</b>, the price of the umbrella. At that point it’s yours to keep.<div>${askGo('rates', 'See prices')}</div>`;
+  if (has('cash', 'coin', 'barya', 'gcash', 'maya', ' card', 'debit', 'pay with', 'how do i pay', 'how to pay', 'magbayad', 'payment method'))
+    return `You pay through the app with <b>GCash, Maya or a debit or credit card</b>, linked once. The machine takes no cash or coins, which is what lets you return it anywhere and pay only for the time you used.<div>${askGo('wallet', 'Payment')}</div>`;
+  if (has('how much', 'magkano', 'price', 'cost', ' rate', ' fee', 'presyo', 'singil', '₱', 'expensive', 'mahal'))
+    return `You pay for the time you use: <b>₱15</b> the first hour, <b>₱20</b> up to 3 hours, <b>₱25</b> up to 6 hours, and <b>₱40</b> for a whole day. Never more than ₱40 a day, and never more than ₱225 in total.<div>${askGo('rates', 'See prices')}</div>`;
+  if (has('return', 'ibalik', 'ibabalik', 'balik', 'drop off', 'give back'))
+    return `Return it to <b>any</b> Silongan, not just the one you took it from. Slot it in, wait for the machine to confirm, and you’re charged once for the time you used.<div>${askGo('locations', 'See all Silongans')}</div>`;
+  if (has(' rent', 'borrow', 'hiram', 'paano', 'how do i', 'how to', 'get an umbrella', 'get one', ' scan', ' qr', 'unlock'))
+    return `Easy: find a Silongan, scan the QR code on the machine with this app, and take the umbrella that unlocks. No plan to pick. Return it to any Silongan when you’re done.<div>${askGo('locations', 'Find a Silongan')} ${askGo('how', 'How it works')}</div>`;
+  if (has('where', 'saan', 'nasaan', 'location', 'nearest', 'malapit', ' near', 'machine', 'silongan', ' map', 'bgc', 'high street'))
+    return `There are 3 Silongans in BGC, all around Bonifacio High Street:<ul class="ask-list">${KIOSKS.map((k) => `<li><b>Silongan ${k.id}</b>: ${esc(k.title)}</li>`).join('')}</ul><div>${askGo('locations', 'Open the map')}</div>`;
+  if (has('hours', ' open', 'bukas', 'close', 'sarado', 'stock', 'available', 'how many umbrellas', 'ilan'))
+    return `Opening hours and live umbrella stock aren’t connected yet in this prototype. Once the machines are linked, each Silongan will show both.<div>${askGo('locations', 'Silongan details')}</div>`;
+  if (has('rain', 'ulan', 'weather', 'panahon', ' sun', ' init', ' hot ', ' uv', 'heat', 'mainit', 'bagyo', 'storm', 'typhoon'))
+    return `${askWeather()}<div>${askGo('home', 'Today in BGC')}</div>`;
+  if (has('account', 'password', 'delete', 'privacy', ' data', 'email', 'mobile number', 'log out', 'logout'))
+    return `You can change your name, email, mobile number and password in My Account, or delete the account there. SILONG uses your details only to run your rentals.<div>${askGo('account', 'My Account')}</div>`;
+  if (has('who are you', 'sino ka', 'kuya silong', 'are you a bot', 'are you ai', ' ai ', 'robot'))
+    return `Ako si Kuya Silong, SILONG’s helper. I answer from SILONG’s help pages and your demo rental, right here on your device. For anything I can’t answer, customer support can help.<div>${askGo('support', 'Customer support')}</div>`;
+  if (has(' real ', 'demo', 'prototype', 'fake', 'simulat', ' test '))
+    return 'This is a prototype: rentals, payments and the machines are simulated. No money moves and no umbrella is released, so try anything you like.';
+  if (has('thank', 'salamat', ' ty '))
+    return 'Walang anuman! Ingat sa ulan, at sa init din.';
+  if (has(' hi ', ' hello ', ' hey ', 'kumusta', 'musta', 'magandang', 'good morning', 'good afternoon', 'good evening'))
+    return 'Mabuhay! Ako si Kuya Silong. Ask me about prices, renting, returns, lost umbrellas or the weather.';
+  if (has('support', 'contact', 'human', 'agent', 'complain', 'refund', 'problem', 'issue', 'tulong', 'help'))
+    return `Customer support can help with payments, refunds, machine problems and anything else. Send a message from the support page.<div>${askGo('support', 'Customer support')}</div>`;
+  return `Hmm, hindi ko pa alam ’yan. I can help with prices, renting, returns, lost umbrellas, the Silongan locations and the weather. For anything else, customer support can help.<div>${askGo('support', 'Customer support')}</div>`;
+}
+function askRender() {
+  const log = $('#ask-log'); if (!log) return;
+  log.innerHTML = Ask.log.map((m) => m.me ? `<div class="ask-msg me"><div class="bub">${esc(m.text)}</div></div>`
+    : `<div class="ask-msg kuya">${askFace()}<div class="bub">${m.html}</div></div>`).join('');
+  log.scrollTop = log.scrollHeight;
+  const c = $('#ask-chips'); if (c) c.innerHTML = askChips();
+}
+function askSend(text) {
+  const q = String(text || '').trim().slice(0, 200); if (!q) return;
+  Ask.log.push({ me: true, text: q }, { html: '<span class="ask-typing">Kuya Silong is typing…</span>', typing: true });
+  askRender();
+  setTimeout(() => { Ask.log = Ask.log.filter((x) => !x.typing); Ask.log.push({ html: askAnswer(q) }); askRender(); }, calm() ? 0 : 450);
+}
+function openHelper() {
+  if (!Ask.log.length) Ask.log.push({ html: `Mabuhay${S.user ? ', ' + esc(S.user.name.trim().split(/\s+/)[0]) : ''}! Ako si Kuya Silong. Ask me anything about renting an umbrella, or tap a question below.` });
+  /* on touch screens, don't pop the keyboard open before they've seen the suggested questions */
+  const focusInput = matchMedia('(hover: hover)').matches ? 'data-autofocus' : '';
+  openModal({ label: 'Ask Kuya Silong', html: `
+    <div class="modal-head"><div class="row" style="gap:12px;flex-wrap:nowrap">${askFace()}<div><span class="eyebrow">SILONG helper</span><h2>Ask Kuya Silong</h2></div></div><button class="icon-btn" type="button" data-close aria-label="Close">${ic('x')}</button></div>
+    <div class="ask-log" id="ask-log" role="log" aria-live="polite"></div>
+    <div class="ask-chips" id="ask-chips" aria-label="Suggested questions"></div>
+    <form class="ask-form" id="ask-form" autocomplete="off"><input class="input" id="ask-input" aria-label="Your question" placeholder="Magtanong… e.g. How much for 2 hours?" maxlength="200" enterkeyhint="send" ${focusInput}><button class="btn" type="submit">Send</button></form>
+    <p class="muted small" style="margin:0">Kuya Silong answers from SILONG’s help pages and your demo rental, right on this device.</p>` });
+  askRender();
+}
+document.addEventListener('submit', (e) => {
+  if (!e.target || e.target.id !== 'ask-form') return;
+  e.preventDefault(); const i = $('#ask-input'); const q = i.value; i.value = ''; askSend(q); i.focus({ preventScroll: true });
+});
+
 /* ------------------------------ MASCOT ------------------------------ */
 const Mascot = (() => {
   const KEY = 'silong.mascot';
@@ -2380,13 +2552,15 @@ const Mascot = (() => {
     el = document.createElement('div'); el.id = 'mascot'; el.setAttribute('role', 'img'); el.setAttribute('aria-label', 'Kuya Silong, a cartoon mascot holding the Philippine flag');
     el.innerHTML = `<div class="m-bubble" hidden></div><div class="m-in">${SVG}</div>`;
     document.body.appendChild(el); inner = $('.m-in', el); bubble = $('.m-bubble', el);
-    el.addEventListener('click', () => { hop(); say(LINES[Math.floor(Math.random() * LINES.length)]); });
+    el.addEventListener('click', () => { hop(); openHelper(); });
     P.x = P.tx = innerWidth - 120; P.y = P.ty = innerHeight - 220;
   }
   const size = () => (innerWidth < 700 ? 74 : 92);
   const park = () => {
-    const dock = document.querySelector('.mascot-dock'), b = dock && dock.getBoundingClientRect();
-    if (b && b.width && b.height) return { x: b.left + (b.width - size()) / 2, y: b.bottom - size() - 4 };
+    const dock = document.querySelector('.mascot-dock'), b = dock && dock.getBoundingClientRect(), docked = !!(b && b.width && b.height);
+    if (el) el.classList.toggle('docked', docked);
+    /* in the sidebar he sits left of the "Ask" button; if the sidebar is scrolled so his spot is hidden, he waits off screen */
+    if (docked) return b.bottom <= innerHeight + 1 && b.top >= 0 ? { x: b.left + 2, y: b.bottom - size() - 4 } : { x: -400, y: -400 };
     return { x: innerWidth - size() - 8, y: innerHeight - size() * 1.2 - (innerWidth < 1024 ? 76 : 14) };
   };
   function hop() { if (calmNow()) return; inner.classList.remove('hop'); void inner.offsetWidth; inner.classList.add('hop'); }
@@ -2413,13 +2587,13 @@ const Mascot = (() => {
     requestAnimationFrame(frame);
   }
   function init() {
-    build(); el.hidden = !on; el.style.display = on ? '' : 'none';
+    build(); el.hidden = !on; el.style.display = on ? '' : 'none'; document.body.classList.toggle('no-mascot', !on);
     addEventListener('hashchange', () => { if (!on) return; hop(); const r = location.hash.slice(1); if (ROUTE[r]) setTimeout(() => say(ROUTE[r]), 350); });
     addEventListener('resize', () => { last.t = 0; });
-    setTimeout(() => { if (on) { hop(); say('Mabuhay! Ako si Kuya Silong.'); } }, 900);
+    setTimeout(() => { if (on) { hop(); say('Mabuhay! May tanong? I‑click mo ako.'); } }, 900);
     requestAnimationFrame(frame);
   }
-  return { init, say, on: () => on, set(v) { on = v; store.set(KEY, v); el.style.display = on ? '' : 'none'; if (on) { last.t = 0; hop(); } } };
+  return { init, say, svg: SVG, on: () => on, set(v) { on = v; store.set(KEY, v); el.style.display = on ? '' : 'none'; document.body.classList.toggle('no-mascot', !on); if (on) { last.t = 0; hop(); } } };
 })();
 
 /* live countdown */
