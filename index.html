@@ -832,7 +832,7 @@ body.authing::before { display: none; }
 @media (min-width: 700px) { .legend { grid-template-columns: repeat(3, minmax(0, 1fr)); } .map-card.cool { height: 400px; } }
 
 /* ---------- mascot: Kuya Silong ---------- */
-#mascot { position: fixed; left: 0; top: 0; z-index: 55; width: 74px; pointer-events: none; will-change: transform; }
+#mascot { position: fixed; left: 0; top: 0; z-index: 55; width: 62px; pointer-events: none; will-change: transform; }
 #mascot.idle { pointer-events: auto; cursor: pointer; }
 @media (min-width: 700px) { #mascot { width: 92px; } }
 #mascot svg { display: block; width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 6px 8px rgba(0, 10, 30, .22)); }
@@ -1010,6 +1010,8 @@ body.no-mascot .ask-dock { width: 100%; }
 /* narrow sunrise cards (phones, tablets in portrait): drop the middle label so the sunset time isn't cut off */
 .arc-wrap { container-type: inline-size; }
 @container (max-width: 420px) { .sun-row > span.sky-soft { display: none; } }
+/* phones and tablets: Kuya Silong waits above the tab bar, so every page gets room to scroll its last item clear of him */
+@media (max-width: 1023.98px) { main { padding-bottom: calc(var(--nav-h) + 128px + env(safe-area-inset-bottom, 0px)); } }
 /* tablets in portrait: use the width instead of one long column */
 @media (min-width: 760px) and (max-width: 1023.98px) {
   .two-col { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
@@ -2109,8 +2111,6 @@ function viewAccount() {
         <div class="card"><div class="row" style="flex-wrap:nowrap;gap:16px"><div class="avatar lg" aria-hidden="true">${esc(initials(u.name))}</div>
           <div style="min-width:0"><h2 style="overflow-wrap:anywhere">${esc(u.name)}</h2><p class="muted small">Member since ${new Date(u.createdAt).toLocaleDateString('en-PH', { dateStyle: 'medium' })}</p></div></div>
           <dl class="kv" style="margin-top:12px"><div><dt>Email</dt><dd>${esc(u.email)}</dd></div><div><dt>Mobile</dt><dd class="num">${esc(u.mobile)}</dd></div></dl></div>
-        <div class="card"><div class="row between" style="flex-wrap:nowrap;gap:14px"><div style="min-width:0"><h3>Kuya Silong, the mascot</h3><p class="muted small">He answers questions about prices, returns and the weather. Click him in the sidebar, or the chat button on phones. The walking mascot is off by default on phones.</p></div>
-          <button class="btn secondary sm" type="button" data-action="mascot-toggle">${Mascot.on() ? 'Hide' : 'Show'}</button></div></div>
         <form class="card form" id="profile-form" novalidate data-form="profile"><h3>Edit profile</h3>
           ${field({ id: 'pf-name', label: 'Full name', value: u.name, autocomplete: 'name' })}
           ${field({ id: 'pf-email', label: 'Email address', type: 'email', value: u.email, autocomplete: 'email' })}
@@ -2521,7 +2521,8 @@ document.addEventListener('submit', (e) => {
 /* ------------------------------ MASCOT ------------------------------ */
 const Mascot = (() => {
   const KEY = 'silong.mascot';
-  let el, inner, bubble, tipTimer, on = store.get(KEY, innerWidth >= 1024) !== false;
+  /* Kuya Silong is always there from the first screen, on every device (no setting to turn him on) */
+  let el, inner, bubble, tipTimer, on = true;
   const P = { x: 0, y: 0, tx: 0, ty: 0, vx: 0 }, last = { t: 0, type: 'mouse' }, calmNow = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
   const LINES = ['Mabuhay!', 'Kumusta!', 'Ingat sa ulan!', 'Tara na!', 'Salamat po!', 'Handa ka na sa ulan?'];
   const ROUTE = { home: 'Kumusta! Tingnan natin ang panahon.', locations: 'Tara, hanap tayo ng Silongan!', rates: 'Mula ₱15 lang ang unang oras.', rentals: 'Ibalik sa kahit anong Silongan!', wallet: 'Sisingilin ka lang pagbalik.', how: 'Madali lang, promise!', support: 'Nandito kami para tumulong.', account: 'Ikaw ba ‘yan? Ang pogi/ganda!' };
@@ -2555,7 +2556,7 @@ const Mascot = (() => {
     el.addEventListener('click', () => { hop(); openHelper(); });
     P.x = P.tx = innerWidth - 120; P.y = P.ty = innerHeight - 220;
   }
-  const size = () => (innerWidth < 700 ? 74 : 92);
+  const size = () => (innerWidth < 700 ? 62 : 92);
   const park = () => {
     const dock = document.querySelector('.mascot-dock'), b = dock && dock.getBoundingClientRect(), docked = !!(b && b.width && b.height);
     if (el) el.classList.toggle('docked', docked);

@@ -10,7 +10,7 @@ A front-end prototype of SILONG, a smart umbrella rental service in Bonifacio Gl
 - **Try it without signing up.** "Try the demo" creates a throwaway account on your device in one tap.
 - **Phones, tablets and PCs.** Tested on screens from a 360-pixel-wide phone through iPad mini, iPad Air and iPad Pro in both orientations to full-HD monitors. Tablets get two-column layouts, short screens (1366×768 laptops, iPads held sideways) get a compact sidebar, text fields are large enough that iPhones and iPads don't zoom in when you tap them, and the site can be added to the home screen like an app. On wide monitors the home page becomes a dashboard.
 - **Rain or shine.** The weather card shows today's UV peak and suggests an umbrella as shade on strong-sun days.
-- **Smaller fixes.** Kuya Silong has his own spot in the sidebar and is off by default on phones, machines are named the same way everywhere, developer notes are gone from the screens, the FAQ and terms match the new model, and the site has a favicon and link-preview tags.
+- **Smaller fixes.** Kuya Silong is there from the first screen on every device, with his own spot in the sidebar on wide screens, machines are named the same way everywhere, developer notes are gone from the screens, the FAQ and terms match the new model, and the site has a favicon and link-preview tags.
 
 ## About this prototype
 
