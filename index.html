@@ -968,9 +968,6 @@ body.authing::before { display: none; }
 .top-login { white-space: nowrap; }
 .offline-line { align-items: center; color: var(--ink-2); }
 .offline-line .ic { color: var(--ok-fg); flex: none; }
-.pay-box { display: grid; gap: 10px; padding: 14px; border-radius: 16px; border: 1.5px dashed var(--line); background: var(--surface-2); }
-.pay-qr { display: grid; place-items: center; }
-.pay-qr img { width: min(240px, 64vw); height: auto; background: #fff; padding: 8px; border-radius: 14px; image-rendering: pixelated; }
 .avatar.guest { background: var(--surface-2); color: var(--ink-2); }
 .examples li b { font-family: var(--font-display); }
 .cap-card { border-left: 5px solid var(--c-green, #238a3e); }
@@ -1159,7 +1156,7 @@ body.no-mascot .ask-dock { width: 100%; }
    ===================================================================== */
 
 /* ------------------------------ 1. CONFIG + DATA ------------------------------ */
-const CFG = Object.assign({ GOOGLE_MAPS_API_KEY: '', GRACE_MINUTES: 15, WEATHER_ENABLED: true, TIMEZONE: 'Asia/Manila', TOPUP_MIN: 20, TOPUP_MAX: 5000, TOPUPS: 'off', PAY_QR: '', PAY_TO: '' }, window.SILONG_CONFIG || {});
+const CFG = Object.assign({ GOOGLE_MAPS_API_KEY: '', GRACE_MINUTES: 15, WEATHER_ENABLED: true, TIMEZONE: 'Asia/Manila', TOPUP_MIN: 20, TOPUP_MAX: 5000 }, window.SILONG_CONFIG || {});
 /* MODE 'demo' (the default): everything is simulated, and accounts can live on this device.
    MODE 'live': the real app before launch. Accounts are real (Supabase), guests can look around, and
    renting and payments say "launching soon" until the machines and a payment provider are connected. */
@@ -1784,46 +1781,6 @@ const Offline = {
   }
 };
 
-/* ---- SILONG credit (the real app). Top-ups are bank or e-wallet transfers to the InstaPay QR in config.js
-   (PAY_QR). The team approves each one after checking its bank history; only approvals add credit, and the
-   database refuses any other change. TOPUPS in config.js: 'off', 'team' (only approvers see Top up, for
-   testing) or 'all'. ---- */
-const Team = {
-  is: false,
-  async check() {
-    this.is = false;
-    if (!LIVE || !Cloud.on || !S.user) return false;
-    try { const { data, error } = await within(Cloud.sb.rpc('is_team'), 8000); this.is = !error && data === true; } catch (e) { this.is = false; }
-    return this.is;
-  }
-};
-const topupsOpen = () => LIVE && Cloud.on && !!S.user && !!CFG.PAY_QR && (CFG.TOPUPS === 'all' || (CFG.TOPUPS === 'team' && Team.is));
-const Credit = {
-  balance: null, ledger: [], topups: [], failed: false,
-  reset() { this.balance = null; this.ledger = []; this.topups = []; this.failed = false; },
-  async load() {
-    if (!Cloud.on || !S.user) return;
-    try {
-      const [b, l, t] = await within(Promise.all([
-        Cloud.sb.rpc('my_credit'),
-        Cloud.sb.from('credit_ledger').select('amount, kind, ref, label, created_at').order('created_at', { ascending: false }).limit(30),
-        Cloud.sb.from('topups').select('code, amount, status, note, created_at').order('created_at', { ascending: false }).limit(30)
-      ]), 10000);
-      if (b.error || l.error || t.error) throw b.error || l.error || t.error;
-      this.balance = b.data; this.ledger = l.data; this.topups = t.data; this.failed = false;
-    } catch (e) { this.failed = true; }
-  },
-  mount() { if (topupsOpen()) this.load().then(() => this.paint()); },
-  paint() {
-    $$('[data-credit]').forEach((el) => { el.textContent = this.balance == null ? '—' : peso(this.balance); });
-    $$('[data-credit-activity]').forEach((el) => { el.innerHTML = creditActivity(); });
-  },
-  async request({ code, amount, bankRef, payerName }) {
-    const { error } = await Cloud.sb.from('topups').insert({ code, amount, bank_ref: bankRef, payer_name: payerName || null });
-    if (error) throw new Error(/duplicate|unique/i.test(error.message) ? 'Please close this and start a new top-up.' : Cloud.errMsg(error));
-  }
-};
-
 /* ------------------------------ 3. UI HELPERS ------------------------------ */
 function toast(msg) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
@@ -2102,7 +2059,7 @@ function mountMap(host, onSelect, opts = {}) {
         }, () => toast('Couldn’t get your location. Allow location access and try again.'), { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
       };
       host.addEventListener('click', (e) => { const b = e.target.closest('[data-lmap]'); if (!b) return; if (b.dataset.lmap === 'fit') ctl.reset(); else ctl.locate(); });
-      setTimeout(() => { if (!gaveUp && map.getContainer().isConnected) map.invalidateSize(); }, 150);   /* skip if the screen changed meanwhile */
+      setTimeout(() => { if (!gaveUp) map.invalidateSize(); }, 150);
       if (!opts.fit && S.sel) mark(S.sel);
     }).catch(() => { if (host.isConnected) { ctl.mode = 'preview'; buildPreview(); } });
   };
@@ -2126,17 +2083,6 @@ const TABS = LIVE ? ['home', 'locations', 'rates', 'account'] : ['home', 'locati
 const MORE = LIVE ? ['how', 'terms', 'support'] : ['wallet', 'rates', 'how', 'terms', 'support'];
 const SIM_NOTE = L('Prototype: linked payments, QR unlock, RFID returns and machine availability are simulated. No money moves and no umbrella is released.',
   'SILONG is launching soon. Renting and payments open when the machines are installed.');
-/* the real app adds Payment when top-ups are open to this person, and the approval page for the team */
-const WALLET_NAV = { id: 'wallet', label: 'Payment', tab: 'Payment', icon: 'wallet' }, TEAM_NAV = { id: 'team', label: 'Approve top-ups', tab: 'Team', icon: 'check' };
-function navItems() {
-  if (!LIVE) return NAV;
-  const list = NAV.slice();
-  if (topupsOpen()) list.splice(list.findIndex((n) => n.id === 'rates') + 1, 0, WALLET_NAV);
-  if (Team.is) list.push(TEAM_NAV);
-  return list;
-}
-const navItem = (id) => navItems().find((x) => x.id === id) || NAV.find((x) => x.id === id) || (id === 'wallet' ? WALLET_NAV : TEAM_NAV);
-const moreIds = () => (LIVE ? MORE.concat(topupsOpen() ? ['wallet'] : [], Team.is ? ['team'] : []) : MORE);
 
 function pageHead(title, sub) { return `<div class="page-head"><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>`; }
 
@@ -2355,71 +2301,6 @@ function viewHomeLive() {
     <p class="footnote">${SIM_NOTE}</p>
   </div>`;
 }
-/* ---- Payment in the real app: SILONG credit, top-ups by InstaPay QR, and the team's approval page ---- */
-function viewCredit() {
-  if (!topupsOpen()) return viewSoon('wallet');
-  return `<div class="view">
-    ${pageHead('Payment', 'SILONG credit pays for your rentals. Top up by bank or e-wallet transfer.')}
-    <div class="grid two-col" style="gap:22px">
-      <div class="stack">
-        <div class="card balance cardface"><div class="skyline" aria-hidden="true"></div><span class="eyebrow">SILONG credit</span>
-          <div class="pay-hero num" data-credit>${Credit.balance == null ? '…' : peso(Credit.balance)}</div>
-          <p class="small" style="margin:0;opacity:.85;position:relative">Added once we confirm your transfer. Unused credit can be refunded on request.</p>
-          <div class="btn-row" style="position:relative"><button class="btn sm" type="button" data-action="topup-real">${ic('plus', 'sm')} Top up</button></div>${cardFoot()}</div>
-        <div class="notice quiet">${ic('info', 'sm')}<span>Renting opens at launch. Credit you add now is ready for launch day.</span></div>
-        ${CFG.TOPUPS === 'team' ? `<div class="notice warn">${ic('info', 'sm')}<span>Testing: only the SILONG team can see Top up right now.</span></div>` : ''}
-      </div>
-      <div class="stack"><div class="sec-head"><h2>Activity</h2></div><div data-credit-activity>${creditActivity()}</div></div>
-    </div></div>`;
-}
-function creditActivity() {
-  if (Credit.failed && Credit.balance == null) return `<div class="notice warn">${ic('info', 'sm')}<span>Can’t reach SILONG right now. Check your connection and try again.</span></div>`;
-  if (Credit.balance == null) return '<div class="card flat"><p class="muted small" style="margin:0">Loading…</p></div>';
-  const rows = Credit.topups.filter((t) => t.status !== 'approved').map((t) => ({ at: t.created_at, html: `<div class="ledger-row"><div style="min-width:0"><b>${t.status === 'pending' ? 'Top-up waiting for approval' : 'Top-up not approved'}</b><div class="muted small num">${fmtDT(t.created_at)} · <span class="notr">${esc(t.code)}</span></div>${t.note ? `<div class="muted small">${esc(t.note)}</div>` : ''}</div><div class="r"><b class="num">${peso(t.amount)}</b><div class="muted small">${t.status === 'pending' ? 'Pending' : 'Not approved'}</div></div></div>` }))
-    .concat(Credit.ledger.map((x) => ({ at: x.created_at, html: `<div class="ledger-row"><div style="min-width:0"><b>${esc(x.label || x.kind)}</b><div class="muted small num">${fmtDT(x.created_at)}${x.ref ? ` · <span class="notr">${esc(x.ref)}</span>` : ''}</div></div><div class="r"><b class="num ${x.amount > 0 ? 'pos' : ''}">${x.amount > 0 ? '+' : '−'}${peso(Math.abs(x.amount))}</b></div></div>` })));
-  if (!rows.length) return `<div class="card empty flat">${ic('wallet')}<div><h3>No activity yet</h3><p class="muted small" style="margin-top:4px">Top-ups show here, first as pending, then as credit once approved.</p></div></div>`;
-  rows.sort((p, q) => (p.at < q.at ? 1 : -1));
-  return `<div class="card flat ledger">${rows.map((r) => r.html).join('')}</div>`;
-}
-function openTopUpReal() {
-  const code = 'SLG-' + Array.from(crypto.getRandomValues(new Uint8Array(6)), (n) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[n % 32]).join('');
-  openModal({ label: 'Top up SILONG credit', html: `
-    <div class="modal-head"><div><span class="eyebrow">Top up</span><h2>Add SILONG credit</h2></div><button class="icon-btn" type="button" data-close aria-label="Close">${ic('x')}</button></div>
-    <div class="field"><span class="lbl">1. Choose an amount</span><div class="amt-grid" role="radiogroup" aria-label="Amount">${[100, 200, 300, 500].map((a, i) => `<label class="amt-chip"><input type="radio" name="tp-amt" value="${a}" ${i === 0 ? 'checked' : ''}><span>₱${a}</span></label>`).join('')}</div></div>
-    <div class="pay-box">
-      <span class="lbl">2. Pay it with GCash, Maya or any bank app</span>
-      <div class="pay-qr"><img src="${esc(CFG.PAY_QR)}" alt="InstaPay QR code for SILONG top-ups" width="240" height="240"></div>
-      ${CFG.PAY_TO ? `<p class="small notr" style="margin:0;text-align:center"><b>${esc(CFG.PAY_TO)}</b></p>` : ''}
-      <div class="btn-row" style="justify-content:center"><a class="btn secondary sm" href="${esc(CFG.PAY_QR)}" download="SILONG-InstaPay-QR.png">Save QR</a></div>
-      ${isIOS() ? '<p class="muted small" style="margin:0;text-align:center">On iPhone, press and hold the QR, then tap Save to Photos.</p>' : ''}
-      <ol class="mini-steps small"><li>Save the QR, then in your app open Pay QR or Scan to pay and upload it. Or scan it from another screen.</li><li>Enter the amount. If your app has a message box, type your code <b class="num notr">${code}</b></li><li>Pay, then find the reference number on your receipt.</li></ol>
-      <p class="muted small" style="margin:0">GCash charges ₱10 to send to a bank. Many bank apps send for free.</p>
-    </div>
-    <form class="form" id="tp-form" novalidate data-form="topup" data-code="${code}">
-      <span class="lbl">3. Tell us you’ve paid</span>
-      ${field({ id: 'tp-ref', label: 'Reference number', placeholder: 'From your receipt', autocomplete: 'off' })}
-      ${field({ id: 'tp-name', label: 'Name on your account', required: false, autocomplete: 'name', value: S.user ? S.user.name : '' })}
-      <p class="err" id="tp-form-err" role="alert"></p>
-      <button class="btn block" type="submit">Send for approval</button>
-      <p class="muted small" style="margin:0">We check our bank history and add the credit, usually within the day.</p>
-    </form>` });
-}
-function viewTeam() {
-  return `<div class="view">
-    ${pageHead('Approve top-ups', 'Check each one in your bank history first: the same amount and reference number.')}
-    <div data-team-list><div class="card flat"><p class="muted small" style="margin:0">Loading…</p></div></div></div>`;
-}
-async function paintTeam() {
-  const host = $('[data-team-list]'); if (!host) return;
-  let res; try { res = await within(Cloud.sb.rpc('team_pending_topups'), 10000); } catch (e) { res = { error: e }; }
-  if (!host.isConnected) return;
-  if (res.error) { host.innerHTML = `<div class="notice warn">${ic('info', 'sm')}<span>${esc(Cloud.errMsg(res.error))}</span></div>`; return; }
-  if (!res.data.length) { host.innerHTML = `<div class="card empty flat">${ic('check')}<div><h3>Nothing waiting</h3><p class="muted small" style="margin-top:4px">New top-ups show up here.</p></div></div>`; return; }
-  host.innerHTML = `<div class="stack">${res.data.map((t) => `<article class="card"><div class="row between" style="gap:12px;flex-wrap:wrap"><div style="min-width:0"><b class="num" style="font-size:1.4rem">${peso(t.amount)}</b><div class="small"><span class="notr">${esc(t.name || '')}</span> · <span class="notr">${esc(t.email || '')}</span></div></div><span class="chip plain num notr">${esc(t.code)}</span></div>
-    <dl class="kv" style="margin-top:10px"><div><dt>Reference</dt><dd class="num notr">${esc(t.bank_ref)}</dd></div><div><dt>Name on account</dt><dd class="notr">${esc(t.payer_name || '—')}</dd></div><div><dt>Sent</dt><dd>${fmtDT(t.requested_at)}</dd></div></dl>
-    <div class="btn-row" style="margin-top:10px"><button class="btn sm" type="button" data-action="team-approve" data-code="${esc(t.code)}" data-amt="${t.amount}">${ic('check', 'sm')} Approve</button><button class="btn secondary sm" type="button" data-action="team-reject" data-code="${esc(t.code)}">Reject</button></div></article>`).join('')}</div>`;
-}
-
 /* ---- Rentals and payment in the real app, before launch ---- */
 function viewSoon(kind) {
   const pay = kind === 'wallet';
@@ -2651,10 +2532,9 @@ const TERMS = [
       <tr><td>Umbrella beyond repair</td><td class="r">₱225</td></tr></tbody></table></div>
     <p>Repair and replacement charges will not be combined for the same damage incident.</p>`],
   ['E', 'Customer Responsibilities', `<ul><li>Use the umbrella properly and return it in good condition.</li><li>Do not damage or tamper with the umbrella or vending machine.</li><li>Make sure the umbrella is properly returned.</li><li>Check that the vending machine confirms your successful return.</li><li>Keep your payment receipt or transaction reference.</li><li>Misuse of the service may result in extra charges or restrictions on future rentals.</li></ul>`],
-  ['F', 'Payment and Refund Policy', `<ul><li>The rental fee is charged to the linked payment method when the umbrella is returned.</li><li>If the vending machine fails to release an umbrella after a scan, nothing is charged.</li><li>Customers must report incorrect charges or failed transactions to customer support for verification.</li><li>Refunds will be processed through the original payment method, depending on the payment provider’s process.</li><li>Extra fees for late, lost, or damaged umbrellas will follow the approved price list.</li></ul>` + (LIVE ? `<p class="lead">SILONG credit</p>
-    <ul><li>Credit is added after the SILONG team confirms your bank or e-wallet transfer.</li><li>Any fee your bank or e-wallet charges for the transfer is not part of your credit.</li><li>Unused credit is refunded on request, to the account it came from.</li></ul>` : '')],
+  ['F', 'Payment and Refund Policy', `<ul><li>The rental fee is charged to the linked payment method when the umbrella is returned.</li><li>If the vending machine fails to release an umbrella after a scan, nothing is charged.</li><li>Customers must report incorrect charges or failed transactions to customer support for verification.</li><li>Refunds will be processed through the original payment method, depending on the payment provider’s process.</li><li>Extra fees for late, lost, or damaged umbrellas will follow the approved price list.</li></ul>`],
   ['G', 'Data Privacy and Security', `<ul><li>SILONG uses RFID to track umbrella rentals and returns.</li><li>Customer and payment information will be kept safe.</li><li>Personal information will only be used for proper business purposes.</li><li>Customer information will not be shared with unauthorized people.</li><li>Keep payment details and transaction receipts safe.</li></ul>` + (LIVE ? `<p class="lead">Before launch</p>
-    <ul><li>Your account holds your name, your email address and, if you add it, your mobile number. They are stored in SILONG’s database, hosted by Supabase in Singapore.</li><li>SILONG uses them only to run your account, answer your support messages and, if you ask for it, tell you when SILONG launches.</li><li>No payment details are collected before launch.</li><li>The visit counter records only what happened, such as a visit, with the kind of device and the language. It uses no cookies and nothing that identifies you.</li><li>You can turn off launch news, or delete your account and its data, anytime in My Account.</li><li>If you top up, SILONG keeps the amount, the reference number and the name you give, as payment records, even if you later delete your account.</li></ul>` : '')],
+    <ul><li>Your account holds your name, your email address and, if you add it, your mobile number. They are stored in SILONG’s database, hosted by Supabase in Singapore.</li><li>SILONG uses them only to run your account, answer your support messages and, if you ask for it, tell you when SILONG launches.</li><li>No payment details are collected before launch.</li><li>The visit counter records only what happened, such as a visit, with the kind of device and the language. It uses no cookies and nothing that identifies you.</li><li>You can turn off launch news, or delete your account and its data, anytime in My Account.</li></ul>` : '')],
   ['H', 'Vending Machine Problems and Customer Support', `<ul><li>Report any problem with the vending machine to SILONG customer support.</li><li>If you pay but do not receive an umbrella, keep your payment receipt or reference number.</li><li>Do not force open or try to repair the vending machine.</li><li>SILONG will check reported problems and provide proper assistance.</li></ul>`],
   ['I', 'Agreement to the Terms and Conditions', `<p>By using SILONG, customers agree to follow these rules and take care of the rented umbrella.</p><p>SILONG may update these rules when needed to improve its service. Any changes to rental fees, penalties, and other charges will be properly announced to customers.</p>`]
 ];
@@ -2675,8 +2555,7 @@ const TOPICS = [
   ['Rental process assistance', 'help'], ['Payment concerns', 'coin'], ['Failed vending machine transactions', 'info'],
   ['Lost or damaged umbrella', 'umbrella'], ['Refund inquiry', 'return'], ['General inquiry', 'chat']
 ];
-const FAQ = (LIVE ? [['When does SILONG launch?', 'Soon. The first three Silongans are planned around Bonifacio High Street. Create an account and we’ll email you when they open.']] : [])
-  .concat(LIVE && CFG.TOPUPS === 'all' ? [['How do I top up?', 'Open Payment, choose an amount and pay the InstaPay QR from GCash, Maya or any bank app. Then send us the reference number. We add the credit once we see your transfer.']] : []).concat([
+const FAQ = (LIVE ? [['When does SILONG launch?', 'Soon. The first three Silongans are planned around Bonifacio High Street. Create an account and we’ll email you when they open.']] : []).concat([
   ['How do I rent an umbrella?', 'Find a Silongan, scan the QR code on the machine with the SILONG app, and take the umbrella that unlocks. Return it to any Silongan when you’re done.'],
   ['How much does it cost?', '₱15 for the first hour, ₱20 up to 3 hours, ₱25 up to 6 hours and ₱40 for a full day. You’re charged once, when you return it, for the time you actually used.'],
   ['Where can I return the umbrella?', 'At any SILONG vending machine. Wait for the machine to confirm the return; the app then shows your final charge.'],
@@ -2812,7 +2691,7 @@ function viewAccountLive() {
 }
 
 const VIEWS = LIVE
-  ? { wallet: viewCredit, home: viewHomeLive, locations: viewLocations, rates: viewRates, rentals: () => viewSoon('rentals'), how: viewHow, account: viewAccountLive, terms: viewTerms, support: viewSupport, team: viewTeam }
+  ? { wallet: () => viewSoon('wallet'), home: viewHomeLive, locations: viewLocations, rates: viewRates, rentals: () => viewSoon('rentals'), how: viewHow, account: viewAccountLive, terms: viewTerms, support: viewSupport }
   : { wallet: viewWallet, home: viewHome, locations: viewLocations, rates: viewRates, rentals: viewRentals, how: viewHow, account: viewAccount, terms: viewTerms, support: viewSupport };
 
 /* ---- Auth screens ---- */
@@ -2891,7 +2770,7 @@ function buildShell() {
   $('#app').innerHTML = `<div class="shell">
     <aside class="side" aria-label="Sidebar">
       <a class="brandmark" href="#home" data-go="home" aria-label="SILONG home"><img src="img/5f47a2806a.png" alt="SILONG" width="900" height="467"></a>
-      <nav aria-label="Main">${navItems().map((n, i) => `${n.id === 'how' ? '<div class="nav-sep"></div>' : ''}<a class="nav-link" href="#${n.id}" data-go="${n.id}" data-nav="${n.id}">${ic(n.icon)}${n.label}</a>`).join('')}</nav>
+      <nav aria-label="Main">${NAV.map((n, i) => `${n.id === 'how' ? '<div class="nav-sep"></div>' : ''}<a class="nav-link" href="#${n.id}" data-go="${n.id}" data-nav="${n.id}">${ic(n.icon)}${n.label}</a>`).join('')}</nav>
       <div class="stack" style="gap:10px"><div class="mascot-dock"><button class="ask-dock" type="button" data-action="ask-open"><b>May tanong?</b><span>Ask Kuya Silong</span></button></div>${LIVE ? '' : `<button class="bal-pill block" type="button" data-go="wallet" aria-label="Payment and credit">${ic('wallet', 'sm')}<span>Credit</span><b class="num" data-balance>${peso(balance())}</b></button>`}
       <div class="side-user">${u ? `<div class="avatar" aria-hidden="true">${esc(initials(u.name))}</div><div><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div>`
         : `<div class="avatar guest" aria-hidden="true">${ic('user', 'sm')}</div><div><b>Guest</b><span><a href="#login">Log in</a> · <a href="#register">Sign up</a></span></div>`}<button class="lang-mini notr" type="button" data-action="lang-toggle" aria-label="${I18N.lang === 'fil' ? 'Switch to English' : 'Lumipat sa Filipino'}">${I18N.lang === 'fil' ? 'EN' : 'FIL'}</button></div></div>
@@ -2914,7 +2793,7 @@ function renderView(keepScroll) {
   host.innerHTML = VIEWS[S.route]();
   const a = activeRental(); S.lastStatus = a ? statusOf(a) : null;
   $$('[data-nav]').forEach((el) => {
-    const id = el.dataset.nav, on = id === S.route || (id === 'more' && !TABS.includes(S.route) && moreIds().includes(S.route));
+    const id = el.dataset.nav, on = id === S.route || (id === 'more' && !TABS.includes(S.route) && MORE.includes(S.route));
     if (on) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
   });
   paintBalance(); runCounts();
@@ -2923,8 +2802,6 @@ function renderView(keepScroll) {
     S.hmap = mountMap($('#home-map'), (id) => { S.sel = id; location.hash = '#locations'; }, { fit: true });
   }
   if (S.route === 'locations') S.map = mountMap($('#map-host'), (id) => selectKiosk(id, true));
-  if (S.route === 'wallet' && LIVE) Credit.mount();
-  if (S.route === 'team') paintTeam();
   if (keepScroll) window.scrollTo(0, y);
 }
 function selectKiosk(id, fromMap) {
@@ -2948,7 +2825,7 @@ function route() {
     if (!['welcome', 'login', 'register'].includes(r)) { history.replaceState(null, '', '#welcome'); return renderAuth('welcome'); }
     S.route = r; renderAuth(r); window.scrollTo(0, 0); return;
   }
-  if (!VIEWS[r] || (r === 'team' && !Team.is)) { history.replaceState(null, '', '#home'); S.route = 'home'; }
+  if (!VIEWS[r]) { history.replaceState(null, '', '#home'); S.route = 'home'; }
   else S.route = r;
   if (!S.shell || !$('#view-host')) buildShell();
   renderView(); window.scrollTo(0, 0);
@@ -2975,7 +2852,7 @@ async function handleForm(form) {
     Object.entries(e).forEach(([k, m]) => setErr(k, m)); $('#lg-form-err').textContent = '';
     if (Object.values(e).some(Boolean)) { $('[aria-invalid="true"]', form).focus(); return; }
     btn.disabled = true;
-    try { await Auth.login(val('lg-email').trim(), val('lg-pass')); if (LIVE) await Team.check(); navigate('home'); }
+    try { await Auth.login(val('lg-email').trim(), val('lg-pass')); navigate('home'); }
     catch (err) { $('#lg-form-err').textContent = err.message; btn.disabled = false; }
   } else if (kind === 'profile') {
     const np = val('pf-pass');
@@ -2986,15 +2863,6 @@ async function handleForm(form) {
       S.user = await Auth.update(S.user.id, { name: val('pf-name').trim(), email: val('pf-email').trim(), mobile: val('pf-mobile').trim() ? normMobile(val('pf-mobile')) : '', newPassword: np });
       S.shell = false; route(); toast('Profile updated.');
     } catch (err) { setErr('pf-email', err.message); }
-  } else if (kind === 'topup') {
-    const ref = val('tp-ref').trim(), amt = Number(($('input[name="tp-amt"]:checked') || {}).value || 0), okRef = /^[A-Za-z0-9 -]{4,40}$/.test(ref);
-    setErr('tp-ref', okRef ? '' : 'Enter the reference number from your receipt.');
-    if (!okRef) { $('#tp-ref').focus(); return; }
-    btn.disabled = true; $('#tp-form-err').textContent = '';
-    try {
-      await Credit.request({ code: form.dataset.code, amount: amt, bankRef: ref, payerName: val('tp-name').trim().slice(0, 120) });
-      closeModal(true); toast(`Sent for approval. We’ll add ${pesoW(amt)} once we see your transfer.`); Credit.mount();
-    } catch (err) { $('#tp-form-err').textContent = err.message; btn.disabled = false; }
   } else if (kind === 'support') {
     const e = { 'sp-name': V.name(val('sp-name')), 'sp-email': V.email(val('sp-email')), 'sp-cat': val('sp-cat') ? '' : 'Choose a category.', 'sp-msg': val('sp-msg').trim().length >= 10 ? '' : 'Tell us a little more (at least 10 characters).' };
     Object.entries(e).forEach(([k, m]) => setErr(k, m));
@@ -3029,15 +2897,14 @@ document.addEventListener('click', async (e) => {
     case 'open-terms': e.preventDefault(); openModal({ label: 'Terms and Conditions', html: `<div class="modal-head"><h2>Terms and Conditions</h2><button class="icon-btn" type="button" data-close aria-label="Close">${ic('x')}</button></div>${termsBody(false)}` }); break;
     case 'more':
       openModal({ label: 'More', html: `<div class="modal-head"><h2>More</h2><button class="icon-btn" type="button" data-close aria-label="Close">${ic('x')}</button></div>
-        <div class="more-list">${moreIds().map((id) => { const n = navItem(id); return `<button type="button" data-go="${id}">${ic(n.icon)}${n.label}</button>`; }).join('')}<button type="button" data-action="ask-open">${ic('chat')}Ask Kuya Silong</button><button type="button" class="notr" data-action="lang-toggle">${ic('globe')}${I18N.lang === 'fil' ? 'English' : 'Filipino'}</button></div>` }); break;
+        <div class="more-list">${MORE.map((id) => { const n = NAV.find((x) => x.id === id); return `<button type="button" data-go="${id}">${ic(n.icon)}${n.label}</button>`; }).join('')}<button type="button" data-action="ask-open">${ic('chat')}Ask Kuya Silong</button><button type="button" class="notr" data-action="lang-toggle">${ic('globe')}${I18N.lang === 'fil' ? 'English' : 'Filipino'}</button></div>` }); break;
     case 'logout':
-      if (await confirmDialog({ title: 'Log out of SILONG?', body: '<p>You can log back in anytime with your email and password.</p>', confirm: 'Log out' })) { Auth.logout(); S.user = null; S.shell = false; Team.is = false; Credit.reset(); navigate(L('welcome', 'home')); }
+      if (await confirmDialog({ title: 'Log out of SILONG?', body: '<p>You can log back in anytime with your email and password.</p>', confirm: 'Log out' })) { Auth.logout(); S.user = null; S.shell = false; navigate(L('welcome', 'home')); }
       break;
     case 'delete-account':
-      if (LIVE && Cloud.on) await Credit.load();
-      if (await confirmDialog({ title: 'Delete your account?', danger: true, confirm: 'Delete account', body: (LIVE && Credit.balance > 0 ? `<p><b>You still have ${peso(Credit.balance)} credit.</b> Message Customer support for a refund before you delete your account.</p>` : '') + '<p>' + ((Cloud.on && (Auth.users().find((x) => x.id === S.user.id) || {}).cloud) ? 'This deletes your account, your rentals and your support messages from SILONG. It cannot be undone.' : 'This removes your demo account and rental records from this browser. It cannot be undone.') + '</p>' })) {
+      if (await confirmDialog({ title: 'Delete your account?', danger: true, confirm: 'Delete account', body: '<p>' + ((Cloud.on && (Auth.users().find((x) => x.id === S.user.id) || {}).cloud) ? 'This deletes your account, your rentals and your support messages from SILONG. It cannot be undone.' : 'This removes your demo account and rental records from this browser. It cannot be undone.') + '</p>' })) {
         if (Cloud.on && (Auth.users().find((x) => x.id === S.user.id) || {}).cloud) { try { await Cloud.removeMe(); } catch (err) { toast(err.message); break; } }
-        Auth.remove(S.user.id); S.user = null; S.shell = false; Team.is = false; Credit.reset(); toast('Account deleted.'); navigate(L('welcome', 'home')); }
+        Auth.remove(S.user.id); S.user = null; S.shell = false; toast('Account deleted.'); navigate(L('welcome', 'home')); }
       break;
     case 'mascot-toggle': Mascot.set(!Mascot.on()); t.textContent = Mascot.on() ? 'Hide' : 'Show'; if (Mascot.on()) Mascot.say('Mabuhay!'); break;
     case 'home-pin': S.sel = d.id; location.hash = '#locations'; break;
@@ -3055,17 +2922,6 @@ document.addEventListener('click', async (e) => {
       try { S.user = await Cloud.setLaunch(want); toast(want ? 'You’re on the launch list.' : 'Launch news is off.'); }
       catch (err) { toast(err.message); }
       closeModal(true); renderView(true); break;
-    }
-    case 'topup-real': if (!topupsOpen()) { toast('Top-ups aren’t open yet.'); break; } openTopUpReal(); break;
-    case 'team-approve':
-    case 'team-reject': {
-      const approve = a === 'team-approve';
-      const ok = await confirmDialog({ title: approve ? 'Approve this top-up?' : 'Reject this top-up?', confirm: approve ? 'Approve' : 'Reject', danger: !approve,
-        body: approve ? `<p class="num"><b>${peso(Number(d.amt))}</b></p><p>Only approve it if this amount and reference number are in your bank history.</p>` : '<p>The customer will see: We couldn’t find this transfer. Message Customer support if you paid.</p>' });
-      if (!ok) break;
-      let res; try { res = await Cloud.sb.rpc('team_decide_topup', { p_code: d.code, p_approve: approve, p_note: approve ? null : 'We couldn’t find this transfer. Message Customer support if you paid.' }); } catch (err) { res = { error: err }; }
-      toast(res.error ? Cloud.errMsg(res.error) : approve ? 'Approved. The credit is on their account.' : 'Not approved.');
-      paintTeam(); break;
     }
     case 'install': {
       if (!installPrompt) { toast('Use your browser’s menu: Add to Home screen or Install app.'); break; }
@@ -3233,10 +3089,6 @@ function askAnswer(raw) {
   if (has(' late', 'longer', 'keep it', 'overdue', 'extend', 'week', 'several days', 'huli', 'tagal'))
     return bi('There’s no late fee. You keep paying for the time, at most <b>₱40 a day</b>, and the charge stops at <b>₱225</b>, the price of the umbrella. At that point it’s yours to keep.',
       'Walang late fee. Tuloy lang ang bayad ayon sa oras, hanggang <b>₱40 kada araw</b>, at titigil ang singil sa <b>₱225</b>, ang presyo ng payong. Pagdating doon, sa iyo na ito.') + `<div>${go('rates', 'See prices', 'Tingnan ang presyo')}</div>`;
-  if (topupsOpen() && has('top up', 'topup', 'top-up', 'credit', ' load', 'instapay', 'gcash', 'maya', ' bank', 'how do i pay', 'how to pay', 'pay with', 'magbayad'))
-    return bi('You pay from your <b>SILONG credit</b>. To top up, open Payment, pay the InstaPay QR from GCash, Maya or any bank app, then send us the reference number. We add the credit once we see your transfer.',
-      'Sa <b>SILONG credit</b> mo ka magbabayad. Para mag-top up, buksan ang Bayad, bayaran ang InstaPay QR gamit ang GCash, Maya, o kahit anong bank app, tapos ipadala sa amin ang reference number. Idadagdag namin ang credit pagkakita namin ng transfer mo.')
-      + `<div>${go('wallet', 'Top up', 'Mag-top up')}</div>`;
   if (has('cash', 'coin', 'barya', 'gcash', 'maya', ' card', 'debit', 'pay with', 'how do i pay', 'how to pay', 'magbayad', 'payment method'))
     return bi('You pay through the app with <b>GCash, Maya or a debit or credit card</b>, linked once. The machine takes no cash or coins, which is what lets you return it anywhere and pay only for the time you used.',
       'Sa app ka magbabayad gamit ang <b>GCash, Maya, o debit o credit card</b>, na isang beses lang i-li-link. Walang cash o barya sa makina, kaya puwede mo itong ibalik kahit saan at magbayad lang para sa oras na ginamit mo.') + `<div>${go('wallet', 'Payment', 'Bayad')}</div>`;
@@ -3410,10 +3262,7 @@ setInterval(() => {
 
 Mascot.init();
 /* Load the chosen language and (if connected) the account first, so the first screen is already right. */
-Promise.all([I18N.init(), Cloud.init()]).catch(() => {}).finally(() => {
-  route(); Stats.event('visit'); Alerts.sync(); Alerts.check(); Offline.watch();
-  if (LIVE && S.user) Team.check().then((is) => { if (is) { S.shell = false; route(); } });   /* approvers get the approval page and, while testing, Top up */
-});
+Promise.all([I18N.init(), Cloud.init()]).catch(() => {}).finally(() => { route(); Stats.event('visit'); Alerts.sync(); Alerts.check(); Offline.watch(); });
 /* Offline support and instant repeat visits */
 if ('serviceWorker' in navigator && isSecureContext) navigator.serviceWorker.register(LIVE ? 'sw.js?ns=' + NS : 'sw.js').catch(() => { /* offline mode unavailable */ });
 })();

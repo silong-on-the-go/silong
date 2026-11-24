@@ -3,7 +3,7 @@
    The demo registers sw.js and the real app registers sw.js?ns=silongapp, so the two keep separate
    caches even though they share one website address. */
 const NS = new URL(location.href).searchParams.get('ns') === 'silongapp' ? 'silongapp' : 'silong';
-const VERSION = NS + '-core-2026-11-25b';
+const VERSION = NS + '-core-2026-11-25a';
 const CORE = ['./', 'index.html', 'config.js', 'lang-fil.js', 'manifest.webmanifest', 'qr.html',
   'img/5f47a2806a.png', 'img/5fa28b0e07.png', 'img/581e05ef1a.png', 'img/b3e5dbed33.png', 'img/2724515ba7.png', 'img/d87dedd030.png', 'img/eb52b0bc4b.png',
   'img/icon-180.png', 'img/icon-192.png', 'img/icon-512.png'];
