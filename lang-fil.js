@@ -340,6 +340,19 @@
     'Guest': 'Bisita', 'Sign up': 'Mag-sign up', 'You’re on the launch list.': 'Nasa launch list ka na.', 'Launch news is off.': 'Naka-off na ang launch news.',
     'Sign-ups are paused right now. Try again later.': 'Naka-pause ang pag-sign up ngayon. Subukan ulit mamaya.'
   });
+  /* home screen and offline readiness */
+  Object.assign(dict, {
+    'SILONG on your home screen': 'SILONG sa home screen mo', 'SILONG is on your home screen.': 'Nasa home screen mo na ang SILONG.',
+    'You’re in an app’s built-in browser. Open this page in Safari or Chrome to add SILONG to your home screen.': 'Nasa built-in browser ka ng isang app. Buksan ang page na ito sa Safari o Chrome para maidagdag ang SILONG sa home screen mo.',
+    'Add to home screen': 'Idagdag sa home screen', 'Tap the Share button, then Add to Home Screen.': 'I-tap ang Share button, tapos ang Add to Home Screen.',
+    'In your browser’s menu, choose Add to Home screen or Install app.': 'Sa menu ng browser mo, piliin ang Add to Home screen o Install app.',
+    'After adding it, open SILONG from your home screen once while you’re online. It saves itself on your phone, and from then on it opens without signal too.': 'Pagkatapos itong idagdag, buksan ang SILONG mula sa home screen mo nang isang beses habang may internet. Ise-save nito ang sarili sa phone mo, at mula noon bubukas na ito kahit walang signal.',
+    'Ready to work offline on this device.': 'Handa nang gumana offline sa device na ito.', 'This browser can’t keep SILONG for offline use.': 'Hindi kayang i-save ng browser na ito ang SILONG para sa offline.',
+    'Getting ready to work offline…': 'Inihahanda para gumana offline…', 'Ready to work offline. SILONG now opens even without signal.': 'Handa nang gumana offline. Bubukas na ang SILONG kahit walang signal.',
+    'SILONG is on your home screen. Open it once while online and it works offline too.': 'Nasa home screen mo na ang SILONG. Buksan ito nang isang beses habang may internet at gagana rin ito offline.',
+    'Ready': 'Handa na', 'Getting ready': 'Inihahanda', 'Use your browser’s menu: Add to Home screen or Install app.': 'Gamitin ang menu ng browser mo: Add to Home screen o Install app.',
+    'Adding SILONG to your home screen…': 'Idinadagdag ang SILONG sa home screen mo…'
+  });
   const patterns = [
     [/^Hello, (.+)!$/, 'Kumusta, $1!'],
     [/^Member since (.+)$/, 'Miyembro mula $1'],

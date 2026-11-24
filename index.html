@@ -966,6 +966,8 @@ body.authing::before { display: none; }
 .mini-steps { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; }
 .mini-steps li::marker { font-weight: 800; color: var(--link); }
 .top-login { white-space: nowrap; }
+.offline-line { align-items: center; color: var(--ink-2); }
+.offline-line .ic { color: var(--ok-fg); flex: none; }
 .avatar.guest { background: var(--surface-2); color: var(--ink-2); }
 .examples li b { font-family: var(--font-display); }
 .cap-card { border-left: 5px solid var(--c-green, #238a3e); }
@@ -1740,6 +1742,45 @@ function launchSheet(kioskId) {
 addEventListener('offline', () => toast('You’re offline. SILONG keeps working with what’s saved on this device.'));
 addEventListener('online', () => { toast('Back online.'); Wx.at = 0; if (S.shell && S.route === 'home') initSky(); });
 
+/* ---- Offline readiness. The service worker saves SILONG on the device when it installs; this says so once
+   it's done, the first time on each browser and each home-screen app (on iPhone a home-screen app keeps its
+   own copy, saved the first time it's opened online), and asks the browser to keep that copy. ---- */
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const inAppBrowser = () => /FBAN|FBAV|FB_IAB|Instagram|Messenger|Line\/|musical_ly|BytedanceWebview|TikTok/i.test(navigator.userAgent);
+let installPrompt = null;
+addEventListener('beforeinstallprompt', (e) => { installPrompt = e; Offline.paint(); });
+addEventListener('appinstalled', () => { installPrompt = null; toast('SILONG is on your home screen. Open it once while online and it works offline too.'); Offline.paint(); });
+const Offline = {
+  state: 'checking',
+  label() { return { ready: 'Ready', unsupported: 'Not supported here' }[this.state] || 'Getting ready'; },
+  line() {
+    if (this.state === 'ready') return `${ic('check', 'sm')}<span>Ready to work offline on this device.</span>`;
+    return this.state === 'unsupported' ? '<span>This browser can’t keep SILONG for offline use.</span>' : '<span>Getting ready to work offline…</span>';
+  },
+  async check() {
+    if (!('serviceWorker' in navigator) || !isSecureContext || !('caches' in window)) return (this.state = 'unsupported');
+    try {
+      const r = await within(navigator.serviceWorker.ready, 20000);
+      const page = await caches.match(new URL('index.html', location.href).href);
+      this.state = r.active && r.active.state === 'activated' && page ? 'ready' : 'getting';
+    } catch (e) { this.state = 'getting'; }
+    return this.state;
+  },
+  async watch(tries = 0) {
+    const s = await this.check(); this.paint();
+    if (s === 'ready') {
+      if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});   /* ask the browser not to clear the offline copy */
+      if (!store.get('silong.offlineReady', false)) { store.set('silong.offlineReady', true); toast('Ready to work offline. SILONG now opens even without signal.'); }
+    } else if (s === 'getting' && tries < 30) setTimeout(() => this.watch(tries + 1), 2000);
+  },
+  paint() {
+    $$('[data-offline-line]').forEach((el) => { el.innerHTML = this.line(); });
+    $$('[data-offline-chip]').forEach((el) => { el.textContent = this.label(); el.classList.toggle('active', this.state === 'ready'); });
+    $$('[data-install-how]').forEach((el) => { el.innerHTML = installHow(); });
+  }
+};
+
 /* ------------------------------ 3. UI HELPERS ------------------------------ */
 function toast(msg) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
@@ -1908,6 +1949,18 @@ function mountMap(host, onSelect, opts = {}) {
     };
     ctl.reset = () => animateTo({ ...home });
     ctl.redraw = draw;
+    /* GPS works without internet, so "Find the one nearest me" works on this map too */
+    ctl.locate = () => {
+      if (!navigator.geolocation) { toast('Location isn’t available on this device.'); return; }
+      toast('Finding you…');
+      navigator.geolocation.getCurrentPosition((pos) => {
+        if (!host.isConnected) return;
+        const n = nearestKiosk(pos.coords.latitude, pos.coords.longitude);
+        S.sel = n.k.id; ctl.select(n.k.id); draw();
+        $$('.loc[data-loc]').forEach((x) => x.classList.toggle('sel', x.dataset.loc === n.k.id));
+        toast(`Nearest: Silongan ${n.k.id}, ${fmtDist(n.m)} away, about ${walkMin(n.m)} min on foot.`);
+      }, () => toast('Couldn’t get your location. Allow location access and try again.'), { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+    };
     let drag = null;
     svg.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, vx: vb.x, vy: vb.y }; moved = false; });
     svg.addEventListener('pointermove', (e) => {
@@ -1972,8 +2025,14 @@ function mountMap(host, onSelect, opts = {}) {
       const Lf = window.L, map = Lf.map($('.lmap', host), { zoomControl: false, scrollWheelZoom: !opts.fit }).setView([CENTER.lat, CENTER.lng], 17);
       (S.lmaps = S.lmaps || []).push(map);
       Lf.control.zoom({ position: 'bottomright' }).addTo(map);
-      Lf.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, crossOrigin: 'anonymous',
+      const tiles = Lf.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, crossOrigin: 'anonymous',
         attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors' }).addTo(map);
+      /* Connected but no internet (Wi-Fi without internet, mobile data with no load): no map pictures arrive,
+         so switch to the built-in map instead of showing an empty grid. */
+      let tilesIn = 0, tilesFailed = 0, gaveUp = false;
+      const giveUp = () => { if (gaveUp || tilesIn || !host.isConnected) return; gaveUp = true; ctl.mode = 'preview'; buildPreview(); setTimeout(() => { try { map.remove(); } catch (e) { /* already gone */ } }, 600); if (S.sel && !opts.fit) ctl.select(S.sel); };
+      tiles.on('tileload', () => { tilesIn++; }).on('tileerror', () => { tilesFailed++; if (tilesFailed >= 4) giveUp(); });
+      setTimeout(() => { if (tilesFailed) giveUp(); }, 8000);
       const markers = {};
       KIOSKS.forEach((k) => {
         const icon = Lf.divIcon({ className: 'lmk', html: `<span class="lmk-pin"><img src="${k.emblem}" alt=""><b>${k.id}</b></span>`, iconSize: [46, 56], iconAnchor: [23, 56] });
@@ -1981,7 +2040,7 @@ function mountMap(host, onSelect, opts = {}) {
       });
       const bounds = Lf.latLngBounds(KIOSKS.map((k) => [k.lat, k.lng])).pad(opts.fit ? 0.8 : 0.5);
       const mark = (id) => Object.entries(markers).forEach(([mid, m]) => { const e = m.getElement(); if (e) e.classList.toggle('sel', mid === id); });
-      map.fitBounds(bounds);
+      map.fitBounds(bounds, { animate: false });
       ctl.select = (id) => { const k = kiosk(id); mark(id); map.flyTo([k.lat, k.lng], 18, { duration: calm() ? 0 : 0.6 }); };
       ctl.reset = () => map.flyToBounds(bounds, { duration: calm() ? 0 : 0.6 });
       ctl.redraw = () => map.invalidateSize();
@@ -2000,7 +2059,7 @@ function mountMap(host, onSelect, opts = {}) {
         }, () => toast('Couldn’t get your location. Allow location access and try again.'), { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
       };
       host.addEventListener('click', (e) => { const b = e.target.closest('[data-lmap]'); if (!b) return; if (b.dataset.lmap === 'fit') ctl.reset(); else ctl.locate(); });
-      setTimeout(() => map.invalidateSize(), 150);
+      setTimeout(() => { if (!gaveUp) map.invalidateSize(); }, 150);
       if (!opts.fit && S.sel) mark(S.sel);
     }).catch(() => { if (host.isConnected) { ctl.mode = 'preview'; buildPreview(); } });
   };
@@ -2528,6 +2587,20 @@ function viewSupport() {
       </form></section></div>`;
 }
 
+/* ---- SILONG on the home screen, and whether it's ready offline (Account, demo and real app) ---- */
+function installHow() {
+  if (isStandalone()) return '<p class="muted small">SILONG is on your home screen.</p>';
+  if (inAppBrowser()) return '<p class="muted small">You’re in an app’s built-in browser. Open this page in Safari or Chrome to add SILONG to your home screen.</p>';
+  if (installPrompt) return `<button class="btn sm" type="button" data-action="install">${ic('plus', 'sm')} Add to home screen</button>`;
+  if (isIOS()) return '<p class="muted small">Tap the Share button, then Add to Home Screen.</p>';
+  return '<p class="muted small">In your browser’s menu, choose Add to Home screen or Install app.</p>';
+}
+function installCard() {
+  return `<div class="card"><h3>SILONG on your home screen</h3><div data-install-how style="margin-top:6px">${installHow()}</div>
+    <p class="muted small" style="margin-top:8px">After adding it, open SILONG from your home screen once while you’re online. It saves itself on your phone, and from then on it opens without signal too.</p>
+    <p class="small row offline-line" style="gap:8px;margin-top:10px" data-offline-line>${Offline.line()}</p></div>`;
+}
+
 /* ---- Account ---- */
 function viewAccount() {
   const u = S.user;
@@ -2537,7 +2610,7 @@ function viewAccount() {
     ['Map', CFG.GOOGLE_MAPS_API_KEY ? 'Google Maps' : 'OpenStreetMap'], ['QR unlock at the machine', 'Simulated (camera scan)'],
     ['RFID umbrella tracking', 'Not connected'], ['Vending machine hardware', 'Not connected'], ['Live inventory and vending machine status', 'Not connected'],
     ['Pay-as-you-go charges', 'Calculated in demo only'], ['Customer support backend', Cloud.on ? 'Connected (Supabase)' : 'Not connected'],
-    ['Visit counter', Cloud.configured() ? 'Connected (stats page)' : 'Not connected'], ['Works offline', 'serviceWorker' in navigator ? 'On' : 'Not supported here'],
+    ['Visit counter', Cloud.configured() ? 'Connected (stats page)' : 'Not connected'], ['Works offline', Offline.label()],
     ['Rain and heat alerts', Alerts.on() ? 'On' : 'Off']
   ];
   return `<div class="view">
@@ -2551,6 +2624,7 @@ function viewAccount() {
           <div class="seg notr" role="group" aria-label="Language"><button type="button" data-action="lang-set" data-lang="en" aria-pressed="${I18N.lang === 'en'}">English</button><button type="button" data-action="lang-set" data-lang="fil" aria-pressed="${I18N.lang === 'fil'}">Filipino</button></div></div></div>
         <div class="card"><div class="row between" style="flex-wrap:wrap;gap:12px"><div style="min-width:0;flex:1 1 220px"><h3>Rain and heat alerts</h3><p class="muted small">A notification when rain or strong sun is coming in BGC. Works while SILONG is open, and in the background on Android once it’s added to the home screen.</p></div>
           <button class="btn ${Alerts.on() ? '' : 'secondary'} sm" type="button" data-action="alerts-toggle" aria-pressed="${Alerts.on()}">${ic('bell', 'sm')} ${Alerts.on() ? 'On' : 'Turn on'}</button></div></div>
+        ${installCard()}
         <form class="card form" id="profile-form" novalidate data-form="profile"><h3>Edit profile</h3>
           ${field({ id: 'pf-name', label: 'Full name', value: u.name, autocomplete: 'name' })}
           ${field({ id: 'pf-email', label: 'Email address', type: 'email', value: u.email, autocomplete: 'email' })}
@@ -2561,7 +2635,7 @@ function viewAccount() {
           <button class="btn danger" type="button" data-action="delete-account">Delete account</button></div>
       </div>
       <div class="stack"><div class="card"><h3>Prototype status</h3><p class="muted small">What is simulated and what is connected.</p>
-        <div class="status-grid" style="margin-top:8px">${rows.map((r) => `<div><span>${r[0]}</span><span class="chip plain ${r[1] === 'Not connected' ? '' : 'sim'}">${r[1]}</span></div>`).join('')}</div></div>
+        <div class="status-grid" style="margin-top:8px">${rows.map((r) => `<div><span>${r[0]}</span><span class="chip plain ${r[1] === 'Not connected' ? '' : 'sim'}" ${r[0] === 'Works offline' ? 'data-offline-chip' : ''}>${r[1]}</span></div>`).join('')}</div></div>
         <div class="notice ${Cloud.on ? '' : 'warn'}">${ic('info', 'sm')}<span>${Cloud.on ? 'Your account and rentals are saved to SILONG’s database, so they follow you to any device.' : 'Accounts here live in this browser’s local storage. That is a demonstration, not secure account management. A production version needs a secure backend.'}</span></div></div>
     </div></div>`;
 }
@@ -2571,13 +2645,14 @@ function prefCards() {
   return `<div class="card"><div class="row between" style="flex-wrap:wrap;gap:12px"><div style="min-width:0"><h3>Language</h3><p class="muted small">Every screen and Kuya Silong, in English or Filipino.</p></div>
       <div class="seg notr" role="group" aria-label="Language"><button type="button" data-action="lang-set" data-lang="en" aria-pressed="${I18N.lang === 'en'}">English</button><button type="button" data-action="lang-set" data-lang="fil" aria-pressed="${I18N.lang === 'fil'}">Filipino</button></div></div></div>
     <div class="card"><div class="row between" style="flex-wrap:wrap;gap:12px"><div style="min-width:0;flex:1 1 220px"><h3>Rain and heat alerts</h3><p class="muted small">A notification when rain or strong sun is coming in BGC. Works while SILONG is open, and in the background on Android once it’s added to the home screen.</p></div>
-      <button class="btn ${Alerts.on() ? '' : 'secondary'} sm" type="button" data-action="alerts-toggle" aria-pressed="${Alerts.on()}">${ic('bell', 'sm')} ${Alerts.on() ? 'On' : 'Turn on'}</button></div></div>`;
+      <button class="btn ${Alerts.on() ? '' : 'secondary'} sm" type="button" data-action="alerts-toggle" aria-pressed="${Alerts.on()}">${ic('bell', 'sm')} ${Alerts.on() ? 'On' : 'Turn on'}</button></div></div>
+    ${installCard()}`;
 }
 function statusCard() {
-  const rows = [['Accounts', 'Live'], ['Map and directions', 'Live'], ['Rain and heat alerts', 'Live'], ['Ask Kuya Silong', 'Live'],
+  const rows = [['Accounts', 'Live'], ['Map and directions', 'Live'], ['Rain and heat alerts', 'Live'], ['Ask Kuya Silong', 'Live'], ['Works offline', Offline.label()],
     ['Vending machines', 'Launching soon'], ['GCash, Maya and card payments', 'At launch'], ['Live umbrella availability', 'At launch']];
   return `<div class="card"><h3>SILONG status</h3><p class="muted small">What works today, and what opens at launch.</p>
-    <div class="status-grid" style="margin-top:8px">${rows.map((r) => `<div><span>${r[0]}</span><span class="chip ${r[1] === 'Live' ? 'active' : 'plain'}">${r[1]}</span></div>`).join('')}</div></div>`;
+    <div class="status-grid" style="margin-top:8px">${rows.map((r) => `<div><span>${r[0]}</span><span class="chip ${r[1] === 'Live' || r[1] === 'Ready' ? 'active' : 'plain'}" ${r[0] === 'Works offline' ? 'data-offline-chip' : ''}>${r[1]}</span></div>`).join('')}</div></div>`;
 }
 function viewAccountLive() {
   const u = S.user;
@@ -2847,6 +2922,12 @@ document.addEventListener('click', async (e) => {
       try { S.user = await Cloud.setLaunch(want); toast(want ? 'You’re on the launch list.' : 'Launch news is off.'); }
       catch (err) { toast(err.message); }
       closeModal(true); renderView(true); break;
+    }
+    case 'install': {
+      if (!installPrompt) { toast('Use your browser’s menu: Add to Home screen or Install app.'); break; }
+      const p = installPrompt; installPrompt = null;
+      try { await p.prompt(); const c = await p.userChoice; if (c && c.outcome === 'accepted') toast('Adding SILONG to your home screen…'); } catch (err) { /* the browser declined */ }
+      Offline.paint(); break;
     }
     case 'ask-open': e.preventDefault(); openHelper(); break;
     case 'ask-chip': askSend(d.q); break;
@@ -3181,7 +3262,7 @@ setInterval(() => {
 
 Mascot.init();
 /* Load the chosen language and (if connected) the account first, so the first screen is already right. */
-Promise.all([I18N.init(), Cloud.init()]).catch(() => {}).finally(() => { route(); Stats.event('visit'); Alerts.sync(); Alerts.check(); });
+Promise.all([I18N.init(), Cloud.init()]).catch(() => {}).finally(() => { route(); Stats.event('visit'); Alerts.sync(); Alerts.check(); Offline.watch(); });
 /* Offline support and instant repeat visits */
 if ('serviceWorker' in navigator && isSecureContext) navigator.serviceWorker.register(LIVE ? 'sw.js?ns=' + NS : 'sw.js').catch(() => { /* offline mode unavailable */ });
 })();
