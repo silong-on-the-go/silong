@@ -3,7 +3,7 @@
    The demo registers sw.js and the real app registers sw.js?ns=silongapp, so the two keep separate
    caches even though they share one website address. */
 const NS = new URL(location.href).searchParams.get('ns') === 'silongapp' ? 'silongapp' : 'silong';
-const VERSION = NS + '-core-2026-11-25f';
+const VERSION = NS + '-core-2026-11-25g';
 const CORE = ['./', 'index.html', 'config.js', 'lang-fil.js', 'manifest.webmanifest', 'qr.html',
   'img/5f47a2806a.png', 'img/5fa28b0e07.png', 'img/581e05ef1a.png', 'img/b3e5dbed33.png', 'img/2724515ba7.png', 'img/d87dedd030.png', 'img/eb52b0bc4b.png',
   'img/icon-180.png', 'img/icon-192.png', 'img/icon-512.png',
@@ -40,7 +40,9 @@ function networkFirst(e, name, wait, app) {
   const key = req.mode === 'navigate' ? req.url.split(/[?#]/)[0] : req;      /* one saved page, whatever the query string */
   let saving = null, quick = false;
   const t0 = Date.now();
-  const fresh = fetch(req).then((res) => {
+  /* the app's own files: always ask the server (a quick "not changed" when nothing is new), never the browser's
+     short-term copy, so reopening SILONG while online always gets the newest version */
+  const fresh = (app ? fetch(req.mode === 'navigate' ? req.url : req, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(req)).then((res) => {
     if (page && Date.now() - t0 < wait) { quick = true; slowUntil = 0; }     /* the network answered quickly: it's fine again */
     if (res.ok && !res.redirected) { const copy = res.clone(); saving = cacheP.then((c) => c.put(key, copy)); }
     return res;
