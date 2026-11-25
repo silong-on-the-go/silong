@@ -276,6 +276,8 @@ main { min-width: 0; outline: none; padding-bottom: calc(var(--nav-h) + 32px + e
   color: var(--ink-2); font-size: .7rem; font-weight: 600; text-decoration: none; min-height: 52px; align-content: center;
 }
 .tab[aria-current="page"] { color: var(--link); background: var(--info-bg); }
+.tab span { white-space: nowrap; }                         /* one line per label, even "Mag-top up" */
+@media (max-width: 380px) { .tab { font-size: .64rem; } }  /* small phones: a touch smaller so every label fits */
 
 .page-head { display: grid; gap: 8px; }
 .page-head p { color: var(--ink-2); max-width: 62ch; }
@@ -2097,14 +2099,15 @@ const NAV = [
   { id: 'locations', label: 'Find a Silongan',       tab: 'Locations', icon: 'pin' },
   { id: 'rates',     label: 'Prices',                tab: 'Prices',    icon: 'tag' },
   { id: 'rentals',   label: 'My Rentals',            tab: 'Rentals',   icon: 'receipt' },
-  { id: 'wallet',    label: 'Payment',               tab: 'Payment',   icon: 'wallet' },
+  { id: 'wallet',    label: 'Top up',                tab: 'Top up',    icon: 'wallet' },
   { id: 'how',       label: 'How It Works',          tab: 'How',       icon: 'help' },
   { id: 'account',   label: 'My Account',            tab: 'Account',   icon: 'user' },
   { id: 'terms',     label: 'Terms and Conditions',  tab: 'Terms',     icon: 'doc' },
   { id: 'support',   label: 'Customer Support',      tab: 'Support',   icon: 'chat' }
 ].filter((n) => !LIVE || !['rentals', 'wallet'].includes(n.id));   /* before launch there are no rentals or payments to manage */
-const TABS = LIVE ? ['home', 'locations', 'rates', 'account'] : ['home', 'locations', 'rentals', 'account'];
-const MORE = LIVE ? ['how', 'terms', 'support'] : ['wallet', 'rates', 'how', 'terms', 'support'];
+/* phones: Top up has its own spot in the bottom bar, as in the real app; My Rentals moves into More and stays on Home */
+const TABS = LIVE ? ['home', 'locations', 'rates', 'account'] : ['home', 'locations', 'wallet', 'account'];
+const MORE = LIVE ? ['how', 'terms', 'support'] : ['rentals', 'rates', 'how', 'terms', 'support'];
 const SIM_NOTE = L('Prototype: linked payments, QR unlock, RFID returns and machine availability are simulated. No money moves and no umbrella is released.',
   'SILONG is launching soon. Renting and payments open when the machines are installed.');
 
@@ -2247,13 +2250,13 @@ function cardFoot() {
 function viewHome() {
   const u = S.user, r = activeRental(), first = u.name.trim().split(/\s+/)[0];
   const stat = r ? `${ic('clock', 'sm')} Umbrella out · <b>${esc(cdInfo(r).main)}</b>` : `${ic('umbrella', 'sm')} No umbrella out`;
-  const tiles = [['locations', 'img/b3e5dbed33.png', 'Find a Silongan', '3 machines in BGC'], ['rates', 'img/2724515ba7.png', 'Prices', '₱15 first hour'], ['rentals', 'img/eb52b0bc4b.png', 'My rentals', 'Live charge and history'], ['how', 'img/d87dedd030.png', 'How it works', 'Scan, take, return']];
+  const tiles = [['locations', 'img/b3e5dbed33.png', 'Find a Silongan', '3 machines in BGC'], ['rates', 'img/2724515ba7.png', 'Prices', '₱15 first hour'], ['how', 'img/d87dedd030.png', 'How it works', 'Scan, take, return'], ['wallet', 'img/eb52b0bc4b.png', 'Top up', 'GCash, Maya or bank']];
   return `<div class="view home">
     <section class="hero">
       <span class="eyebrow">SILONG · Shelter on the Go</span>
       <h1>Hello, ${esc(first)}!</h1>
       <p>Rain or shine, an umbrella is a short walk away. Scan the QR at any Silongan, take one, and return it to any other.</p>
-      <div class="hero-chips"><a class="hchip" href="#wallet" data-go="wallet"><span class="gcash-dot">G</span> <b>${payLabel()}</b></a><a class="hchip" href="#rentals" data-go="rentals">${stat}</a></div>
+      <div class="hero-chips"><a class="hchip" href="#wallet" data-go="wallet"><span class="gcash-dot">G</span> <b>${payLabel()}</b></a><a class="hchip" href="#rentals" data-go="rentals">${stat}</a><a class="hchip" href="#wallet" data-go="wallet">${ic('wallet', 'sm')} <b class="num" data-balance>${peso(balance())}</b> credit · Top up</a></div>
       <div class="hero-umb" aria-hidden="true">${ic('umbrella')}<i class="drop d1"></i><i class="drop d2"></i><i class="drop d3"></i></div>
       <div class="skyline" aria-hidden="true"></div><div class="pattern-strip"></div>
     </section>
@@ -2341,7 +2344,7 @@ function viewSoon(kind) {
 function viewWallet() {
   const w = Wallet.get(S.user.id);
   return `<div class="view">
-    ${pageHead('Payment', 'Your SILONG credit and top-ups, and your linked payment method.')}
+    ${pageHead('Top up', 'Your SILONG credit and top-ups, and your linked payment method.')}
     <div class="grid two-col" style="gap:22px">
       <div class="stack">
         <div class="card balance cardface"><div class="skyline" aria-hidden="true"></div><div class="row between"><span class="eyebrow">Linked payment</span><span class="chip sim">Demo</span></div>

@@ -381,6 +381,7 @@
     'Top-ups, and rentals paid with credit, show up here.': 'Dito lalabas ang mga top-up, at ang mga rentang binayaran gamit ang credit.',
     'From your SILONG credit': 'Mula sa SILONG credit mo', 'Charged to GCash •••• 4567': 'Sinisingil sa GCash •••• 4567', 'Top-up by bank transfer (demo)': 'Top-up sa bank transfer (demo)'
   });
+  Object.assign(dict, { 'credit · Top up': 'credit · Mag-top up' });
   const patterns = [
     [/^Sent for approval\. We’ll add (₱[\d,]+) once we see your transfer\.$/, 'Naipadala para maaprubahan. Idadagdag namin ang $1 pagkakita namin ng transfer mo.'],
     [/^Approved \(demo\): (₱[\d,]+) added to your SILONG credit\.$/, 'Naaprubahan (demo): naidagdag ang $1 sa SILONG credit mo.'],
