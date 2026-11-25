@@ -3393,7 +3393,11 @@ Promise.all([I18N.init(), Cloud.init()]).catch(() => {}).finally(() => { route()
 if ('serviceWorker' in navigator && isSecureContext) {
   const hadWorker = !!navigator.serviceWorker.controller;   /* installed before: a new worker taking over is an update */
   let swReg = null, lastCheck = Date.now();
-  navigator.serviceWorker.register(LIVE ? 'sw.js?ns=' + NS : 'sw.js').then((r) => { swReg = r; }).catch(() => { /* offline mode unavailable */ });
+  navigator.serviceWorker.register(LIVE ? 'sw.js?ns=' + NS : 'sw.js').then((r) => {
+    swReg = r;
+    /* every time SILONG opens: ask for the newest version (the browser's own check can wait while the page is busy) */
+    setTimeout(() => { lastCheck = Date.now(); r.update().catch(() => { /* offline: try when back online */ }); }, 3000);
+  }).catch(() => { /* offline mode unavailable */ });
   /* home-screen apps often come back from the background without reloading: look for a new version then */
   document.addEventListener('visibilitychange', () => {
     if (document.hidden || !swReg || Date.now() - lastCheck < 60000) return;
