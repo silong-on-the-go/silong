@@ -963,6 +963,30 @@ body.authing::before { display: none; }
 .gcash-dot { width: 20px; height: 20px; border-radius: 6px; background: #0b6cff; color: #fff; display: inline-grid; place-items: center; font-weight: 800; font-size: .7rem; line-height: 1; flex: none; }
 .examples { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .examples li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
+/* top up (same look as the real app) */
+.pay-box { display: grid; gap: 10px; padding: 14px; border-radius: 16px; border: 1.5px dashed var(--line); background: var(--surface-2); }
+.pay-qr { display: grid; place-items: center; position: relative; }
+.pay-qr img { width: min(240px, 64vw); height: auto; background: #fff; padding: 8px; border-radius: 14px; image-rendering: pixelated; }
+.sample-tag { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-12deg); background: #d9341c; color: #fff; font: 800 .8rem/1 var(--font-display, sans-serif); padding: 7px 11px; border-radius: 8px; letter-spacing: .04em; box-shadow: 0 4px 12px rgba(0, 0, 0, .25); white-space: nowrap; }
+.amt-grid.methods { grid-template-columns: repeat(3, 1fr); }
+.amt-grid.methods .amt-chip > span { min-height: 92px; padding: 6px 4px; text-align: center; gap: 2px; }
+.amt-chip span small { display: block; font-size: .75rem; font-weight: 600; opacity: .8; }
+.amt-chip .pm-mark.bank { width: 32px; height: 32px; min-height: 0; padding: 0; border: 0; border-radius: 50%; }
+.tp-total { display: grid; justify-items: center; gap: 2px; text-align: center; }
+.tp-total b { font: 800 1.9rem/1.1 var(--font-display, sans-serif); }
+.tp-title { display: flex; align-items: center; gap: 8px; }
+.tp-title .pm-mark { width: 24px; height: 24px; margin: 0; }
+.tp-title .pm-mark.bank .ic { width: 14px; height: 14px; }
+.pm-mark { display: block; width: 32px; height: 32px; border-radius: 50%; margin: 0 auto 4px; object-fit: cover; }
+.pm-mark.bank { display: grid; place-items: center; background: var(--info-bg); color: var(--info-fg); }
+.pm-mark.bank .ic { width: 18px; height: 18px; }
+.pm-row { display: inline-flex; gap: 6px; align-items: center; }
+.pm-row .pm-mark { width: 26px; height: 26px; margin: 0; }
+.pm-row .pm-mark.bank .ic { width: 15px; height: 15px; }
+.file-pick { position: relative; display: block; }
+.file-pick input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.file-pick:focus-within .btn { outline: 3px solid var(--focus); outline-offset: 2px; }
+.receipt-preview { display: block; max-width: 180px; max-height: 260px; border-radius: 12px; border: 1px solid var(--line); margin-top: 10px; background: #fff; }
 .mini-steps { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; }
 .mini-steps li::marker { font-weight: 800; color: var(--link); }
 .top-login { white-space: nowrap; }
@@ -1131,6 +1155,7 @@ body.no-mascot .ask-dock { width: 100%; }
     <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15l1.5-2z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></symbol>
     <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></symbol>
     <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="6" height="6" rx="1.2"/><rect x="14.5" y="3.5" width="6" height="6" rx="1.2"/><rect x="3.5" y="14.5" width="6" height="6" rx="1.2"/><path d="M14.5 14.5h2.5v2.5h-2.5zM18.5 18.5h2v2h-2zM14.5 20.5h1.5M20.5 14.5v1.5"/></symbol>
+<symbol id="i-bank" viewBox="0 0 24 24"><path d="M3.5 9.5 12 4.5l8.5 5"/><path d="M4.5 9.5h15M6.5 10v7M10.2 10v7M13.8 10v7M17.5 10v7M3.5 19.5h17"/></symbol>
   </defs>
 </svg>
 
@@ -1175,11 +1200,11 @@ const PLANS = [
 /* Pin coordinates are APPROXIMATE placeholders placed from the street descriptions.
    Replace lat/lng with surveyed vending machine coordinates before launch. */
 const KIOSKS = [
-  { id: 'A', name: 'SILONGAN 1', loc: 'Location A', title: 'One Bonifacio High Street / 5th Avenue Pedestrian Plaza',
+  { id: 'A', label: 'Plaza Silongan', name: 'Plaza Silongan', loc: 'Location A', title: 'One Bonifacio High Street / 5th Avenue Pedestrian Plaza',
     address: '5th Avenue corner 28th Street perimeter, BGC, Taguig, Philippines', lat: 14.5519, lng: 121.0473, emblem: 'img/b3e5dbed33.png' },
-  { id: 'B', name: 'SILONGAN 2', loc: 'Location B', title: 'Bonifacio High Street Central – 7th Avenue Promenade',
+  { id: 'B', label: 'Promenade Silongan', name: 'Promenade Silongan', loc: 'Location B', title: 'Bonifacio High Street Central – 7th Avenue Promenade',
     address: '7th Avenue corner High Street Promenade, BGC, Taguig, Philippines', lat: 14.5524, lng: 121.0489, emblem: 'img/2724515ba7.png' },
-  { id: 'C', name: 'SILONGAN 3', loc: 'Location C', title: 'Bonifacio Stopover / 31st Street Corridor',
+  { id: 'C', label: 'Corridor Silongan', name: 'Corridor Silongan', loc: 'Location C', title: 'Bonifacio Stopover / 31st Street Corridor',
     address: '31st Street corner 5th Avenue, BGC, Taguig, Philippines', lat: 14.5542, lng: 121.0468, emblem: 'img/d87dedd030.png' }
 ];
 const CENTER = {
@@ -1225,6 +1250,7 @@ const fmtDurShort = (ms) => {
 };
 const plan = (id) => PLANS.find((p) => p.id === id);
 const kiosk = (id) => KIOSKS.find((k) => k.id === id);
+const kName = (id) => (kiosk(id) || {}).label || 'Silongan ' + id;   /* Plaza, Promenade or Corridor Silongan */
 
 /* Pay as you go: charged once, on return, for the time actually used, at the lowest price step
    that covers it. At most P40 per day, and never more than P225 in total (the price of the
@@ -1714,12 +1740,12 @@ function unlockAt(id) {
   const rental = Rentals.start(S.user.id, { planId: '24h', kioskId: id });
   Rentals.update(S.user.id, rental.id, (x) => { x.payg = true; x.label = 'Pay as you go'; x.price = 0; });
   Stats.event('rental_start');
-  toast('Umbrella unlocked at Silongan ' + id + ' (demo). The meter is running.'); navigate('rentals');
+  toast('Umbrella unlocked at ' + kName(id) + ' (demo). The meter is running.'); navigate('rentals');
 }
 function scannedAt(id) {
   if (LIVE) { launchSheet(id); return; }
   if (activeRental()) { toast('You already have an umbrella out. Return it first.'); navigate('rentals'); return; }
-  rentSheet(id); toast('You scanned Silongan ' + id + '.');
+  rentSheet(id); toast('You scanned ' + kName(id) + '.');
 }
 /* The real app before launch: there are no machines or payments yet, so anything that would start a
    rental explains that instead, and offers launch news. */
@@ -1732,7 +1758,7 @@ function launchSheet(kioskId) {
   const k = kioskId && kiosk(kioskId);
   openModal({ label: 'SILONG is launching soon', html: `
     <div class="modal-head"><div><span class="eyebrow">Launching soon</span><h2>${k ? 'This Silongan opens soon' : 'Renting opens at launch'}</h2></div><button class="icon-btn" type="button" data-close aria-label="Close">${ic('x')}</button></div>
-    ${k ? `<div class="scan-box"><img src="${k.emblem}" alt="" width="64" height="64" style="border-radius:14px"><div><b>Silongan ${esc(k.id)}</b><p class="muted small" style="margin:4px 0 0">${esc(k.title)}</p></div></div>` : ''}
+    ${k ? `<div class="scan-box"><img src="${k.emblem}" alt="" width="64" height="64" style="border-radius:14px"><div><b>${esc(k.label)}</b><p class="muted small" style="margin:4px 0 0">${esc(k.title)}</p></div></div>` : ''}
     <p style="margin:0">SILONG’s vending machines are being prepared. Renting and payments open the day they’re installed.</p>
     ${launchCTA()}
     <p class="muted small" style="margin:0">Want to see how renting will work? <a href="${DEMO_URL}" target="_blank" rel="noopener">Try the demo</a></p>` });
@@ -1881,12 +1907,10 @@ function previewMapSVG() {
   <g id="mk-layer"></g>`;
 }
 function markerSVG(k, i) {
-  return `<g class="mk" data-k="${k.id}" tabindex="0" role="button" aria-label="${esc(k.name)}, ${esc(k.loc)}: ${esc(k.title)}"><g class="mk-in" style="--i:${i}"><circle class="mk-ring" r="12"/><circle class="mk-ring r2" r="12"/><g class="mk-bob">
+  return `<g class="mk" data-k="${k.id}" tabindex="0" role="button" aria-label="${esc(k.label)}: ${esc(k.title)}"><g class="mk-in" style="--i:${i}"><circle class="mk-ring" r="12"/><circle class="mk-ring r2" r="12"/><g class="mk-bob">
     <path d="M0 0 L-9 -12 L9 -12 Z" fill="#fff"/>
     <rect class="mk-body" x="-24" y="-64" width="48" height="48" rx="14" fill="#fff" stroke="#fff" stroke-width="2"/>
-    <image href="${k.emblem}" x="-19" y="-59" width="38" height="38" clip-path="url(#mk-clip)"/>
-    <circle cx="20" cy="-60" r="11" fill="#002d5b" stroke="#fff" stroke-width="2"/>
-    <text x="20" y="-55.5" font-size="13" font-weight="800" fill="#fff" text-anchor="middle">${k.id}</text></g></g></g>`;
+    <image href="${k.emblem}" x="-19" y="-59" width="38" height="38" clip-path="url(#mk-clip)"/></g></g></g>`;
 }
 function centerMarkerSVG() {
   return `<g id="mk-c" role="img" aria-label="${esc(CENTER.name)}">
@@ -1958,7 +1982,7 @@ function mountMap(host, onSelect, opts = {}) {
         const n = nearestKiosk(pos.coords.latitude, pos.coords.longitude);
         S.sel = n.k.id; ctl.select(n.k.id); draw();
         $$('.loc[data-loc]').forEach((x) => x.classList.toggle('sel', x.dataset.loc === n.k.id));
-        toast(`Nearest: Silongan ${n.k.id}, ${fmtDist(n.m)} away, about ${walkMin(n.m)} min on foot.`);
+        toast(`Nearest: ${n.k.label}, ${fmtDist(n.m)} away, about ${walkMin(n.m)} min on foot.`);
       }, () => toast('Couldn’t get your location. Allow location access and try again.'), { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
     };
     let drag = null;
@@ -2035,8 +2059,8 @@ function mountMap(host, onSelect, opts = {}) {
       setTimeout(() => { if (tilesFailed) giveUp(); }, 8000);
       const markers = {};
       KIOSKS.forEach((k) => {
-        const icon = Lf.divIcon({ className: 'lmk', html: `<span class="lmk-pin"><img src="${k.emblem}" alt=""><b>${k.id}</b></span>`, iconSize: [46, 56], iconAnchor: [23, 56] });
-        markers[k.id] = Lf.marker([k.lat, k.lng], { icon, title: 'Silongan ' + k.id, alt: 'Silongan ' + k.id, riseOnHover: true }).addTo(map).on('click', () => onSelect(k.id));
+        const icon = Lf.divIcon({ className: 'lmk', html: `<span class="lmk-pin"><img src="${k.emblem}" alt=""></span>`, iconSize: [46, 56], iconAnchor: [23, 56] });
+        markers[k.id] = Lf.marker([k.lat, k.lng], { icon, title: k.label, alt: k.label, riseOnHover: true }).addTo(map).on('click', () => onSelect(k.id));
       });
       const bounds = Lf.latLngBounds(KIOSKS.map((k) => [k.lat, k.lng])).pad(opts.fit ? 0.8 : 0.5);
       const mark = (id) => Object.entries(markers).forEach(([mid, m]) => { const e = m.getElement(); if (e) e.classList.toggle('sel', mid === id); });
@@ -2055,7 +2079,7 @@ function mountMap(host, onSelect, opts = {}) {
           else me = Lf.marker(here, { icon: Lf.divIcon({ className: 'lmk', html: '<span class="me-dot"></span>', iconSize: [18, 18], iconAnchor: [9, 9] }), title: 'You are here', interactive: false }).addTo(map);
           mark(n.k.id); map.flyToBounds(Lf.latLngBounds([here, [n.k.lat, n.k.lng]]).pad(0.35), { maxZoom: 18, duration: calm() ? 0 : 0.8 });
           S.sel = n.k.id; $$('.loc[data-loc]').forEach((x) => x.classList.toggle('sel', x.dataset.loc === n.k.id));
-          toast(`Nearest: Silongan ${n.k.id}, ${fmtDist(n.m)} away, about ${walkMin(n.m)} min on foot.`);
+          toast(`Nearest: ${n.k.label}, ${fmtDist(n.m)} away, about ${walkMin(n.m)} min on foot.`);
         }, () => toast('Couldn’t get your location. Allow location access and try again.'), { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
       };
       host.addEventListener('click', (e) => { const b = e.target.closest('[data-lmap]'); if (!b) return; if (b.dataset.lmap === 'fit') ctl.reset(); else ctl.locate(); });
@@ -2107,7 +2131,7 @@ function activeCard(r, full) {
     <dl class="kv">${r.payg ? `
       <div><dt>Reference</dt><dd class="num">${esc(r.ref)}</dd></div>
       <div><dt>Pricing</dt><dd>Pay as you go · max ₱40 a day</dd></div>
-      <div><dt>Unlocked</dt><dd>Silongan ${esc(k.id)} · ${fmtDT(r.startedAt)}</dd></div>
+      <div><dt>Unlocked</dt><dd>${esc(k.label)} · ${fmtDT(r.startedAt)}</dd></div>
       <div><dt>Return to</dt><dd>Any Silongan</dd></div>
       <div><dt>Charged on return to</dt><dd>${payLabel()}</dd></div>
       <div><dt>Status</dt><dd>${chip(i.st)}</dd></div>` : `
@@ -2116,7 +2140,7 @@ function activeCard(r, full) {
       <div><dt>Price</dt><dd class="num">${peso(r.price)}</dd></div>
       <div><dt>Started</dt><dd>${fmtDT(r.startedAt + 0)}</dd></div>
       <div><dt>Scheduled return</dt><dd>${fmtDT(endOf(r))}</dd></div>
-      <div><dt>Vending machine</dt><dd>Silongan ${esc(k.id)}</dd></div>
+      <div><dt>Vending machine</dt><dd>${esc(k.label)}</dd></div>
       <div><dt>Status</dt><dd>${chip(i.st)}</dd></div>`}
     </dl>
     ${full ? `
@@ -2144,7 +2168,7 @@ function noActiveCard() {
 function histItem(r) {
   const st = statusOf(r), k = kiosk(r.kioskId), total = r.price + r.lateFee;
   return `<article class="hist-item rcpt"><div class="rcpt-label">Demo receipt</div>
-    <div class="top-line"><div><div class="ref">${esc(r.ref)}</div><div class="muted small">${esc(r.label)}${r.payg && r.returnedAt ? ' · ' + fmtDurShort(r.returnedAt - r.startedAt) : ''} · Silongan ${esc(k.id)}</div></div>
+    <div class="top-line"><div><div class="ref">${esc(r.ref)}</div><div class="muted small">${esc(r.label)}${r.payg && r.returnedAt ? ' · ' + fmtDurShort(r.returnedAt - r.startedAt) : ''} · ${esc(k.label)}</div></div>
       <div class="row" style="gap:6px">${r.sample ? '<span class="chip sim">Sample</span>' : '<span class="chip sim">Simulated</span>'}${chip(st)}</div></div>
     <div class="hist-meta">
       <div>Date<br><b>${fmtDT(r.startedAt)}</b></div>
@@ -2246,13 +2270,14 @@ function viewHome() {
       <section class="stack" aria-label="Payment"><div class="sec-head"><h2>Payment</h2><a href="#wallet" data-go="wallet" class="small">Manage</a></div>
         <div class="card balance cardface"><div class="skyline" aria-hidden="true"></div><div class="row between"><span class="eyebrow">Linked payment</span><span class="chip sim">Demo</span></div>
           <div class="pay-hero">${payLabel()}</div>
-          <p class="small" style="margin:0;opacity:.85;position:relative">Charged once, when you return an umbrella. ₱15 first hour, never more than ₱40 a day.</p>${cardFoot()}</div></section>
+          <p class="small" style="margin:0;opacity:.85;position:relative">Charged once, when you return an umbrella. ₱15 first hour, never more than ₱40 a day.</p>
+          <div class="btn-row" style="position:relative;align-items:center"><button class="btn sm" type="button" data-action="topup">${ic('plus', 'sm')} Top up</button><span class="small" style="opacity:.9">SILONG credit <b class="num" data-balance>${peso(balance())}</b></span></div>${cardFoot()}</div></section>
     </div>
 
     <section class="stack home-sec" aria-label="Silongan map"><div class="sec-head"><h2>Find a Silongan</h2><a href="#locations" data-go="locations" class="small">Open full map</a></div>
       <div class="mapfx"><div class="map-card cool" id="home-map"></div>${CFG.GOOGLE_MAPS_API_KEY ? '' : '<div class="radar" aria-hidden="true"></div>'}
         <div class="mapfx-chip"><i></i>${KIOSKS.length} vending machines around BGC</div></div>
-      <div class="legend">${KIOSKS.map((k) => `<button class="lg-chip" type="button" data-action="home-pin" data-id="${k.id}"><img src="${k.emblem}" alt=""><span><b>Silongan ${k.id}</b><small>${esc(k.title)}</small></span></button>`).join('')}</div>
+      <div class="legend">${KIOSKS.map((k) => `<button class="lg-chip" type="button" data-action="home-pin" data-id="${k.id}"><img src="${k.emblem}" alt=""><span><b>${esc(k.label)}</b><small>${esc(k.title)}</small></span></button>`).join('')}</div>
       <p class="muted small">Pin positions are approximate until the machines are installed. Live availability is not connected yet.</p>
     </section>
 
@@ -2294,7 +2319,7 @@ function viewHomeLive() {
     <section class="stack home-sec" aria-label="Silongan map"><div class="sec-head"><h2>Find a Silongan</h2><a href="#locations" data-go="locations" class="small">Open full map</a></div>
       <div class="mapfx"><div class="map-card cool" id="home-map"></div>${CFG.GOOGLE_MAPS_API_KEY ? '' : '<div class="radar" aria-hidden="true"></div>'}
         <div class="mapfx-chip"><i></i>3 planned machines around BGC</div></div>
-      <div class="legend">${KIOSKS.map((k) => `<button class="lg-chip" type="button" data-action="home-pin" data-id="${k.id}"><img src="${k.emblem}" alt=""><span><b>Silongan ${k.id}</b><small>${esc(k.title)}</small></span></button>`).join('')}</div>
+      <div class="legend">${KIOSKS.map((k) => `<button class="lg-chip" type="button" data-action="home-pin" data-id="${k.id}"><img src="${k.emblem}" alt=""><span><b>${esc(k.label)}</b><small>${esc(k.title)}</small></span></button>`).join('')}</div>
       <p class="muted small">Pin positions are approximate until the machines are installed.</p>
     </section>
 
@@ -2316,7 +2341,7 @@ function viewSoon(kind) {
 function viewWallet() {
   const w = Wallet.get(S.user.id);
   return `<div class="view">
-    ${pageHead('Payment', 'Your linked payment method, and SILONG credit for promos and refunds.')}
+    ${pageHead('Payment', 'Your SILONG credit and top-ups, and your linked payment method.')}
     <div class="grid two-col" style="gap:22px">
       <div class="stack">
         <div class="card balance cardface"><div class="skyline" aria-hidden="true"></div><div class="row between"><span class="eyebrow">Linked payment</span><span class="chip sim">Demo</span></div>
@@ -2324,19 +2349,92 @@ function viewWallet() {
           <p class="small" style="margin:0;opacity:.85;position:relative">Charged once, when you return an umbrella, for the time you used.</p>
           <div class="btn-row"><button class="btn sm" type="button" data-action="change-pay">Switch to Maya or a card</button></div>${cardFoot()}</div>
         <div class="card"><div class="row between" style="gap:12px"><div><span class="eyebrow">SILONG credit</span><div class="num" data-balance style="font-family:var(--font-display);font-size:1.7rem;font-weight:800;margin-top:4px">${peso(w.balance)}</div></div>
-          <button class="btn secondary sm" type="button" data-action="topup">${ic('plus', 'sm')} Add credit</button></div>
-          <p class="muted small" style="margin-top:6px">Promos and refunds land here, and are used before your linked payment.</p></div>
+          <button class="btn sm" type="button" data-action="topup">${ic('plus', 'sm')} Top up</button></div>
+          <p class="muted small" style="margin-top:6px">Top up with GCash, Maya or a bank. Your credit pays for rentals first, before your linked payment.</p>
+          <div class="pm-row light" style="margin:8px 0 0" role="img" aria-label="GCash, Maya or bank">${['gcash', 'maya', 'bank'].map(payMark).join('')}</div></div>
         <div class="notice warn">${ic('info', 'sm')}<span>Demo only. No money moves and no payment details are collected. GCash, Maya and card linking are simulated.</span></div>
       </div>
       <div class="stack"><div class="sec-head"><h2>Activity</h2>${w.ledger.length ? `<button class="btn ghost sm" type="button" data-action="reset-wallet">Reset balance</button>` : ''}</div>
+        ${(S.demoPending || []).length ? `<div class="card flat ledger">${S.demoPending.map((t) => `<div class="ledger-row"><div style="min-width:0"><b>Top-up waiting for approval</b><div class="muted small num">${fmtDT(t.at)} · ${PAY_LABEL[t.method]} · <span class="notr">${esc(t.code)}</span></div></div><div class="r"><b class="num">${peso(t.amount)}</b><div class="muted small">Pending</div></div></div>`).join('')}</div>` : ''}
         ${w.ledger.length ? `<div class="card flat ledger">${w.ledger.map((l) => `<div class="ledger-row"><div style="min-width:0"><b>${esc(l.label)}</b><div class="muted small num">${fmtDT(l.at)} · ${esc(l.ref)}</div></div>
           <div class="r"><b class="num ${l.amount > 0 ? 'pos' : ''}">${l.amount > 0 ? '+' : '−'}${peso(Math.abs(l.amount))}</b><div class="muted small num">Balance ${peso(l.balanceAfter)}</div></div></div>`).join('')}</div>` :
-        `<div class="card empty flat">${ic('wallet')}<div><h3>No activity yet</h3><p class="muted small" style="margin-top:4px">Credit added or used shows up here. Rental charges go to your linked payment.</p></div></div>`}
+        (S.demoPending || []).length ? '' : `<div class="card empty flat">${ic('wallet')}<div><h3>No activity yet</h3><p class="muted small" style="margin-top:4px">Top-ups, and rentals paid with credit, show up here.</p></div></div>`}
       </div>
     </div></div>`;
 }
 
+/* Top up (demo): the same steps as the real app (amount, where you pay from, that QR, a receipt screenshot), with
+   sample QR codes that can't receive money, and an automatic approval a moment later. */
+const PAY_LABEL = { gcash: 'GCash', maya: 'Maya', bank: 'Bank' }, DEMO_BANK_FEE = 5;
+const payMark = (m) => (m === 'bank' ? `<span class="pm-mark bank" aria-hidden="true">${ic('bank')}</span>` : `<img class="pm-mark" src="img/mark-${m}.png" alt="" width="32" height="32">`);
+const TOPUP_STEPS = {
+  gcash: ['In GCash, tap QR, then upload the saved QR. Or scan it from another screen.', 'Enter the exact amount above. If there’s a message box, type your code'],
+  maya: ['In Maya, tap Scan, then upload the saved QR. Or scan it from another screen.', 'Enter the exact amount above. If there’s a message box, type your code'],
+  bank: ['In your bank app, open Scan to pay or Pay QR (InstaPay), then upload the saved QR. Or scan it from another screen.', 'Enter the exact amount above, with the processing fee. If there’s a message box, type your code']
+};
+const TOPUP_TITLE = { gcash: '3. Pay with GCash', maya: '3. Pay with Maya', bank: '3. Pay from your bank app' };
+function topupAmount() {
+  const other = (($('#tp-other') || {}).value || '').trim();
+  return other ? Number(other) : Number(($('input[name="tp-amt"]:checked') || {}).value || 0);
+}
+const okTopupAmount = (n) => Number.isInteger(n) && n >= 15 && n <= 5000;
 function openTopUp(pre) {
+  const code = 'DEMO-' + uid().slice(0, 6).toUpperCase(), p = pre ? Math.min(5000, Math.max(15, Math.ceil(pre))) : 0;
+  openModal({ label: 'Top up SILONG credit', html: `
+    <div class="modal-head"><div><span class="eyebrow">Top up · demo</span><h2>Add SILONG credit</h2></div><button class="icon-btn" type="button" data-close aria-label="Close">${ic('x')}</button></div>
+    <div class="field"><span class="lbl">1. How much credit?</span>
+      <div class="amt-grid" role="radiogroup" aria-label="Amount">${[15, 20, 25, 40].map((a, i) => `<label class="amt-chip"><input type="radio" name="tp-amt" value="${a}" ${!p && i === 0 ? 'checked' : ''}><span>₱${a}</span></label>`).join('')}</div>
+      <input class="input num" id="tp-other" type="number" inputmode="numeric" min="15" max="5000" step="1" placeholder="Other amount, ₱15 to ₱5,000" aria-label="Other amount" aria-describedby="tp-other-err" value="${p || ''}" style="margin-top:8px">
+      <p class="err" id="tp-other-err" role="alert"></p></div>
+    <div class="field"><span class="lbl">2. Where will you pay from?</span>
+      <div class="amt-grid methods" role="radiogroup" aria-label="Pay from">${['gcash', 'maya', 'bank'].map((m) => `<label class="amt-chip"><input type="radio" name="tp-method" value="${m}"><span>${payMark(m)}<b>${PAY_LABEL[m]}</b><small>${m === 'bank' ? `+₱${DEMO_BANK_FEE} fee` : 'Free'}</small></span></label>`).join('')}</div>
+      <p class="muted small" style="margin:8px 0 0">${ic('qr', 'sm')} All three are paid by QR: you’ll scan or upload it in that app.</p></div>
+    <div class="pay-box" id="tp-pay" hidden>
+      <span class="lbl tp-title"><span id="tp-pay-mark"></span><span id="tp-pay-title"></span></span>
+      <div class="notice">${ic('info', 'sm')}<span>After you pay, take a screenshot of your receipt. You’ll upload it in step 4.</span></div>
+      <div class="tp-total"><span class="muted small">Send exactly</span><b class="num" id="tp-total">—</b><span class="muted small" id="tp-fee"></span></div>
+      <div class="pay-qr sample"><img id="tp-qr" alt="" width="240" height="240"><span class="sample-tag">Sample QR · demo only</span></div>
+      <div class="notice warn">${ic('info', 'sm')}<span>Demo: this QR is a sample and can’t receive money. Don’t send a real payment.</span></div>
+      <ol class="mini-steps small" id="tp-steps"></ol>
+    </div>
+    <form class="form" id="tp-form" novalidate data-form="topup" data-code="${code}" hidden>
+      <span class="lbl">4. Upload your receipt</span>
+      <div class="field"><label class="file-pick" for="tp-shot"><span class="btn secondary block">${ic('plus', 'sm')} Choose your receipt screenshot</span><input id="tp-shot" type="file" accept="image/*" aria-describedby="tp-shot-err"></label>
+        <img id="tp-shot-preview" class="receipt-preview" alt="Your receipt screenshot" hidden><p class="err" id="tp-shot-err" role="alert"></p></div>
+      ${field({ id: 'tp-ref', label: 'Reference number', required: false, placeholder: 'From your receipt', autocomplete: 'off', hint: 'It helps us find your payment faster.' })}
+      <p class="err" id="tp-form-err" role="alert"></p>
+      <button class="btn block" type="submit">Send for approval</button>
+      <p class="muted small" style="margin:0">In the demo, any picture works, and the approval comes by itself a moment later.</p>
+    </form>` });
+  paintTopUp();
+}
+/* after "Where will you pay from?": that one (sample) QR, the exact amount to send and that app's steps */
+function paintTopUp() {
+  const box = $('#tp-pay'), form = $('#tp-form'); if (!box || !form) return;
+  const m = ($('input[name="tp-method"]:checked') || {}).value, amt = topupAmount(), ok = okTopupAmount(amt);
+  box.hidden = !m; form.hidden = !m; if (!m) return;
+  const fee = m === 'bank' ? DEMO_BANK_FEE : 0, qr = $('#tp-qr');
+  $('#tp-pay-title').textContent = TOPUP_TITLE[m]; $('#tp-pay-mark').innerHTML = payMark(m);
+  if (qr.getAttribute('src') !== `img/sample-${m}.png`) qr.setAttribute('src', `img/sample-${m}.png`);
+  qr.alt = { gcash: 'Sample GCash QR code', maya: 'Sample Maya QR code', bank: 'Sample bank QR code' }[m];
+  $('#tp-total').textContent = ok ? pesoW(amt + fee) : '—';
+  $('#tp-fee').textContent = !ok ? 'Choose an amount first.' : fee ? `₱${amt} credit + ₱${fee} processing fee` : 'No fees';
+  $('#tp-steps').innerHTML = `<li>${TOPUP_STEPS[m][0]}</li><li>${TOPUP_STEPS[m][1]} <b class="num notr">${esc(form.dataset.code)}</b></li><li>Pay, then take a screenshot of your receipt.</li>`;
+}
+document.addEventListener('change', (e) => {
+  if (e.target.name === 'tp-amt') { const o = $('#tp-other'); if (o) o.value = ''; setErr('tp-other', ''); paintTopUp(); }
+  if (e.target.name === 'tp-method') { if ($('#tp-form-err')) $('#tp-form-err').textContent = ''; paintTopUp(); }
+  if (e.target.id === 'tp-shot') {
+    const f = e.target.files && e.target.files[0], p = $('#tp-shot-preview');
+    if (p && f) { if (p.dataset.url) URL.revokeObjectURL(p.dataset.url); p.dataset.url = URL.createObjectURL(f); p.src = p.dataset.url; p.hidden = false; setErr('tp-shot', ''); }
+  }
+});
+document.addEventListener('input', (e) => {
+  if (e.target.id !== 'tp-other') return;
+  $$('input[name="tp-amt"]').forEach((x) => { x.checked = false; }); setErr('tp-other', ''); paintTopUp();
+});
+/* the old demo top-up (kept for reference, no longer opened) */
+function openTopUpOld(pre) {
   const quick = [50, 100, 200, 500], p = pre ? Math.max(CFG.TOPUP_MIN, Math.ceil(pre)) : 100, isQuick = quick.includes(p);
   openModal({ label: 'Top up balance', html: `
     <div class="modal-head"><div><span class="eyebrow">Top up (demo)</span><h2>Add balance</h2></div><button class="icon-btn" type="button" data-close aria-label="Close">${ic('x')}</button></div>
@@ -2351,7 +2449,7 @@ function openTopUp(pre) {
 /* ---- Locations ---- */
 function locCard(k) {
   return `<article class="loc ${S.sel === k.id ? 'sel' : ''}" data-loc="${k.id}">
-    <div class="loc-head"><img src="${k.emblem}" alt=""><div style="min-width:0"><span class="eyebrow">Silongan ${esc(k.id)}</span><h3 class="loc-title">${esc(k.title)}</h3><p class="loc-addr">${esc(k.address)}</p></div></div>
+    <div class="loc-head"><img src="${k.emblem}" alt=""><div style="min-width:0"><span class="eyebrow">${esc(k.label)}</span><h3 class="loc-title">${esc(k.title)}</h3><p class="loc-addr">${esc(k.address)}</p></div></div>
     <div class="pillrow"><span class="chip plain">Availability: coming soon</span><span class="chip plain">Hours: coming soon</span></div>
     <div class="btn-row">
       <a class="btn sm" href="${dirUrl(k)}" target="_blank" rel="noopener">${ic('nav', 'sm')} Get Directions</a>
@@ -2426,7 +2524,7 @@ function rentSheet(kioskId) {
     <div class="modal-head"><div><span class="eyebrow">Scan to rent · demo</span><h2>Unlock an umbrella</h2></div><button class="icon-btn" type="button" data-close aria-label="Close">${ic('x')}</button></div>
     <div class="scan-box"><span class="qr">${ic('qr')}</span><div><b>At the machine, you scan its QR code with this app.</b><p class="muted small" style="margin:4px 0 0">${canScan() ? 'Try it with a printed SILONG QR, or pick the machine below.' : 'In this demo, pick the machine below instead.'}</p>${canScan() ? `<button class="btn sm" type="button" data-action="scan-camera" style="margin-top:10px">${ic('qr', 'sm')} Scan with camera</button>` : ''}</div></div>
     <fieldset style="border:0;padding:0;margin:0;display:grid;gap:10px"><legend class="lbl" style="font-weight:600;margin-bottom:8px">Vending machine</legend>
-      ${KIOSKS.map((k) => `<label class="opt"><input type="radio" name="kiosk" value="${k.id}" ${k.id === kid ? 'checked' : ''}><span><b>Silongan ${k.id}</b><span>${esc(k.title)}</span></span></label>`).join('')}
+      ${KIOSKS.map((k) => `<label class="opt"><input type="radio" name="kiosk" value="${k.id}" ${k.id === kid ? 'checked' : ''}><span><b>${esc(k.label)}</b><span>${esc(k.title)}</span></span></label>`).join('')}
     </fieldset>
     <div class="ladder" aria-label="Prices">${PLANS.map((p, i) => `<div><b class="num">${pesoW(p.price)}</b><small>${['first hour', 'up to 3 h', 'up to 6 h', 'per day, max'][i]}</small></div>`).join('')}</div>
     <div class="pay-line"><span class="muted">Charged when you return it</span><b><span class="gcash-dot">G</span>${payLabel()}</b></div>
@@ -2744,7 +2842,7 @@ function renderAuth(r) {
   } else {
     mode = 'welcome';
     inner = `<div class="auth-lang"><div class="seg notr" role="group" aria-label="Language"><button type="button" data-action="lang-set" data-lang="en" aria-pressed="${I18N.lang === 'en'}">English</button><button type="button" data-action="lang-set" data-lang="fil" aria-pressed="${I18N.lang === 'fil'}">Filipino</button></div></div>
-      ${S.pendingScan ? `<div class="notice">${ic('qr', 'sm')}<span>${bi(`You scanned <b>Silongan ${S.pendingScan}</b>. Try the demo or log in, and it opens right there.`, `Na-scan mo ang <b>Silongan ${S.pendingScan}</b>. Subukan ang demo o mag-log in, at doon ito bubukas.`)}</span></div>` : ''}
+      ${S.pendingScan ? `<div class="notice">${ic('qr', 'sm')}<span>${bi(`You scanned <b>${esc(kName(S.pendingScan))}</b>. Try the demo or log in, and it opens right there.`, `Na-scan mo ang <b>${esc(kName(S.pendingScan))}</b>. Subukan ang demo o mag-log in, at doon ito bubukas.`)}</span></div>` : ''}
       <span class="eyebrow">Smart umbrella rental · BGC</span>
       <div><h1 class="tagline">Shelter on the Go.</h1><p class="muted" style="margin-top:10px;font-size:1.05rem">Rain or shine, borrow an umbrella in BGC and return it to any Silongan. You pay only for the time you use.</p></div>
       <ul class="feat"><li><span class="ft">${ic('pin', 'sm')}</span>Find a Silongan around BGC</li><li><span class="ft">${ic('tag', 'sm')}</span>₱15 for the first hour, never more than ₱40 a day</li><li><span class="ft">${ic('qr', 'sm')}</span>Scan the QR, take an umbrella, return it anywhere</li></ul>
@@ -2863,6 +2961,27 @@ async function handleForm(form) {
       S.user = await Auth.update(S.user.id, { name: val('pf-name').trim(), email: val('pf-email').trim(), mobile: val('pf-mobile').trim() ? normMobile(val('pf-mobile')) : '', newPassword: np });
       S.shell = false; route(); toast('Profile updated.');
     } catch (err) { setErr('pf-email', err.message); }
+  } else if (kind === 'topup') {
+    const m = ($('input[name="tp-method"]:checked') || {}).value, amt = topupAmount(), okAmt = okTopupAmount(amt);
+    const ref = val('tp-ref').trim(), okRef = !ref || /^[A-Za-z0-9 -]{4,40}$/.test(ref), shot = ($('#tp-shot') || {}).files && $('#tp-shot').files[0];
+    setErr('tp-other', okAmt ? '' : 'Enter a whole amount from ₱15 to ₱5,000.');
+    setErr('tp-shot', shot ? '' : 'Upload the screenshot of your receipt.');
+    setErr('tp-ref', okRef ? '' : 'Use only letters and numbers for the reference number.');
+    if (!okAmt) { $('#tp-other').focus(); return; }
+    if (!m) { $('#tp-form-err').textContent = 'Choose where you’ll pay from.'; return; }
+    if (!shot) { $('#tp-shot').focus(); return; }
+    if (!okRef) { $('#tp-ref').focus(); return; }
+    /* demo: pending for a moment, then approved by itself */
+    const who = S.user.id, code = form.dataset.code;
+    S.demoPending = (S.demoPending || []).concat([{ code, amount: amt, method: m, at: Date.now() }]);
+    closeModal(true); toast(`Sent for approval. We’ll add ${pesoW(amt)} once we see your transfer.`); renderView(true);
+    setTimeout(() => {
+      S.demoPending = (S.demoPending || []).filter((x) => x.code !== code);
+      if (!S.user || S.user.id !== who) return;
+      Wallet.add(who, amt, 'topup', { gcash: 'Top-up via GCash', maya: 'Top-up via Maya', bank: 'Top-up by bank transfer' }[m] + ' (demo)');
+      toast(`Approved (demo): ${pesoW(amt)} added to your SILONG credit.`);
+      if (['wallet', 'home'].includes(S.route)) renderView(true); else paintBalance();
+    }, 4000);
   } else if (kind === 'support') {
     const e = { 'sp-name': V.name(val('sp-name')), 'sp-email': V.email(val('sp-email')), 'sp-cat': val('sp-cat') ? '' : 'Choose a category.', 'sp-msg': val('sp-msg').trim().length >= 10 ? '' : 'Tell us a little more (at least 10 characters).' };
     Object.entries(e).forEach(([k, m]) => setErr(k, m));
@@ -2972,10 +3091,17 @@ document.addEventListener('click', async (e) => {
     case 'sim-return': {
       const r = activeRental(); if (!r) break;
       if (r.payg) {
-        const used = nowOf(r) - r.startedAt, cost = paygCost(used);
+        const used = nowOf(r) - r.startedAt, cost = paygCost(used), fromCredit = Math.max(0, Math.min(Math.floor(balance()), cost));
         const ok = await confirmDialog({ title: 'Return the umbrella?', confirm: 'Simulate return',
-          body: `<p>You had it for <b>${fmtDurShort(used)}</b>. <b>${pesoW(cost)}</b> will be charged to ${payLabel()}.</p><p class="muted small">Demo: no RFID scan happens and nothing is charged.</p>` });
-        if (ok) { Stats.event('rental_return'); Rentals.update(S.user.id, r.id, (x) => { x.returnedAt = nowOf(x); x.price = cost; x.lateFee = 0; x.feeSettled = true; }); toast(pesoW(cost) + ' charged to ' + payLabel() + ' (demo). Salamat!'); renderView(true); }
+          body: fromCredit
+            ? `<p>You had it for <b>${fmtDurShort(used)}</b>: <b>${pesoW(cost)}</b>.</p><dl class="kv"><div><dt>From your SILONG credit</dt><dd class="num">${peso(fromCredit)}</dd></div><div><dt>Charged to ${payLabel()}</dt><dd class="num">${peso(cost - fromCredit)}</dd></div></dl><p class="muted small">Demo: no RFID scan happens and nothing is charged.</p>`
+            : `<p>You had it for <b>${fmtDurShort(used)}</b>. <b>${pesoW(cost)}</b> will be charged to ${payLabel()}.</p><p class="muted small">Demo: no RFID scan happens and nothing is charged.</p>` });
+        if (ok) {
+          Stats.event('rental_return'); Rentals.update(S.user.id, r.id, (x) => { x.returnedAt = nowOf(x); x.price = cost; x.lateFee = 0; x.feeSettled = true; });
+          if (fromCredit) Wallet.add(S.user.id, -fromCredit, 'rental', 'Rental ' + r.ref);   /* SILONG credit pays first */
+          toast(!fromCredit ? pesoW(cost) + ' charged to ' + payLabel() + ' (demo). Salamat!' : fromCredit === cost ? pesoW(cost) + ' paid from your SILONG credit (demo). Salamat!' : pesoW(fromCredit) + ' from credit, ' + pesoW(cost - fromCredit) + ' charged to ' + payLabel() + ' (demo). Salamat!');
+          renderView(true);
+        }
         break;
       }
       const lateMin = Math.max(0, Math.ceil((nowOf(r) - endOf(r)) / 60000)), fee = lateFee(lateMin);
@@ -3113,7 +3239,7 @@ function askAnswer(raw) {
       'Hindi pa konektado sa prototype na ito ang oras ng bukas at ang bilang ng payong. Kapag naka-link na ang mga makina, makikita mo pareho sa bawat Silongan.')) + `<div>${go('locations', 'Silongan details', 'Detalye ng Silongan')}</div>`;
   if (has('where', 'saan', 'nasaan', 'location', 'nearest', 'malapit', ' near', 'machine', 'makina', 'silongan', ' map', 'mapa', 'bgc', 'high street'))
     return bi('There are 3 Silongans in BGC, all around Bonifacio High Street:', 'May 3 Silongan sa BGC, lahat malapit sa Bonifacio High Street:')
-      + `<ul class="ask-list">${KIOSKS.map((k) => `<li><b>Silongan ${k.id}</b>: ${esc(k.title)}</li>`).join('')}</ul>`
+      + `<ul class="ask-list">${KIOSKS.map((k) => `<li><b>${esc(k.label)}</b>: ${esc(k.title)}</li>`).join('')}</ul>`
       + bi('The map can also find the one nearest you.', 'Kaya rin ng mapa na hanapin ang pinakamalapit sa iyo.') + `<div>${go('locations', 'Open the map', 'Buksan ang mapa')}</div>`;
   if (has('account', 'password', 'delete', 'privacy', ' data', 'email', 'mobile number', 'log out', 'logout'))
     return (LIVE ? bi('In My Account you can change your name, mobile number and password, turn launch news on or off, or delete the account. SILONG uses your details only for your account, support and launch news. To change your email, message Customer support.',
@@ -3264,7 +3390,26 @@ Mascot.init();
 /* Load the chosen language and (if connected) the account first, so the first screen is already right. */
 Promise.all([I18N.init(), Cloud.init()]).catch(() => {}).finally(() => { route(); Stats.event('visit'); Alerts.sync(); Alerts.check(); Offline.watch(); });
 /* Offline support and instant repeat visits */
-if ('serviceWorker' in navigator && isSecureContext) navigator.serviceWorker.register(LIVE ? 'sw.js?ns=' + NS : 'sw.js').catch(() => { /* offline mode unavailable */ });
+if ('serviceWorker' in navigator && isSecureContext) {
+  const hadWorker = !!navigator.serviceWorker.controller;   /* installed before: a new worker taking over is an update */
+  let swReg = null, lastCheck = Date.now();
+  navigator.serviceWorker.register(LIVE ? 'sw.js?ns=' + NS : 'sw.js').then((r) => { swReg = r; }).catch(() => { /* offline mode unavailable */ });
+  /* home-screen apps often come back from the background without reloading: look for a new version then */
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !swReg || Date.now() - lastCheck < 60000) return;
+    lastCheck = Date.now(); swReg.update().catch(() => { /* offline: try next time */ });
+  });
+  /* back on Wi-Fi or data after being offline: get the latest version straight away */
+  addEventListener('online', () => { if (!swReg) return; lastCheck = Date.now(); swReg.update().catch(() => { /* still offline */ }); });
+  /* when a new version takes over, reload once so it shows right away, unless someone is in the middle of something */
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadWorker || reloading) return;
+    const busy = document.querySelector('.modal') || (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
+    if (busy) { toast('SILONG was updated. Close and reopen it to see what’s new.'); return; }
+    reloading = true; location.reload();
+  });
+}
 })();
 
 </script>

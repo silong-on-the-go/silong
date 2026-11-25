@@ -50,21 +50,21 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" integrity="sha384-mZT2gIty7ZDdOGkxfP6joZcYdMW1Jvj9dRlfpTmaJAKKXTqzygtB22k7FLe+KZC1" crossorigin="anonymous"></script>
 <script>
   const MACHINES = [
-    ['A', 'One Bonifacio High Street / 5th Avenue Pedestrian Plaza', 'img/b3e5dbed33.png'],
-    ['B', 'Bonifacio High Street Central – 7th Avenue Promenade', 'img/2724515ba7.png'],
-    ['C', 'Bonifacio Stopover / 31st Street Corridor', 'img/d87dedd030.png']
+    ['A', 'Plaza Silongan', 'One Bonifacio High Street / 5th Avenue Pedestrian Plaza', 'img/b3e5dbed33.png'],
+    ['B', 'Promenade Silongan', 'Bonifacio High Street Central – 7th Avenue Promenade', 'img/2724515ba7.png'],
+    ['C', 'Corridor Silongan', 'Bonifacio Stopover / 31st Street Corridor', 'img/d87dedd030.png']
   ];
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const host = document.getElementById('codes');
   if (typeof qrcode !== 'function') {
     host.innerHTML = '<p>The QR generator could not load. Check your connection and reload this page.</p>';
   } else {
-    host.innerHTML = MACHINES.map(([id, title, img]) => {
+    host.innerHTML = MACHINES.map(([id, name, title, img]) => {
       const url = new URL('./#scan=' + id, location.href).href;
       const qr = qrcode(0, 'M'); qr.addData(url); qr.make();
       const svg = qr.createSvgTag(8, 0).replace(/ width="\d+px" height="\d+px"/, '');
-      return `<section class="code" data-id="${id}"><div class="top"><img src="${img}" alt=""><h2>Silongan ${id}</h2></div>
-        <div class="qr" role="img" aria-label="QR code for Silongan ${id}">${svg}</div>
+      return `<section class="code" data-id="${id}"><div class="top"><img src="${img}" alt=""><h2>${esc(name)}</h2></div>
+        <div class="qr" role="img" aria-label="QR code for ${esc(name)}">${svg}</div>
         <div class="cta">Scan to rent an umbrella</div><p class="addr">${esc(title)}, BGC</p><p class="url">${esc(url)}</p></section>`;
     }).join('');
   }
