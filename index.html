@@ -2606,7 +2606,7 @@ function viewHow() {
   const steps = [
     ['userplus', 't-blue', 'Sign up and link GCash, Maya or a card', 'One time only. Nothing is charged until you return an umbrella.', LIVE ? (S.user ? ['My account', 'account'] : ['Create an account', 'register']) : ['Payment', 'wallet']],
     ['pin', 't-red', 'Find a Silongan', 'The map shows every SILONG vending machine around BGC.', ['Open the map', 'locations']],
-    ['umbrella', 't-gold', 'Scan the QR and take your umbrella', 'Scan the code on the machine with the app and an umbrella unlocks. No coins, and no plan to pick.'],
+    ['umbrella', 't-gold', 'Scan the QR and take your umbrella', 'Scan the code on the machine with the app and an umbrella unlocks, or pay with coins at the machine. No plan to pick.'],
     ['clock', 't-green', 'Use it, rain or shine', 'The app shows how long you’ve had it and the charge so far: ₱15 for the first hour, never more than ₱40 a day.', ['See prices', 'rates']],
     ['return', 't-blue', 'Return it to any Silongan', 'Slot it back in. The machine confirms the return and your linked payment is charged once, for the time you used.']
   ];
@@ -2620,7 +2620,7 @@ function viewHow() {
 
 /* ---- Terms ---- */
 const TERMS = [
-  ['A', 'Rental Guidelines', `<ul><li>Rentals start in the SILONG app by scanning the vending machine’s QR code.</li><li>Customers link GCash, Maya or a debit or credit card. The vending machine does not accept cash or coins.</li><li>Follow the instructions shown on the vending machine.</li><li>Each rental is recorded through the RFID tracking system.</li><li>Customers may return umbrellas to any available SILONG vending machine.</li><li>Customers are charged once, when the umbrella is returned, for the time they kept it.</li></ul>`],
+  ['A', 'Rental Guidelines', `<ul><li>Rentals start in the SILONG app by scanning the vending machine’s QR code.</li><li>Customers pay through the app (GCash, Maya or a debit or credit card) or with coins at the vending machine.</li><li>Follow the instructions shown on the vending machine.</li><li>Each rental is recorded through the RFID tracking system.</li><li>Customers may return umbrellas to any available SILONG vending machine.</li><li>Customers are charged once, when the umbrella is returned, for the time they kept it.</li></ul>`],
   ['B', 'Prices', `<p>Customers pay for the time they keep the umbrella, at the lowest price step that covers it.</p><p class="lead">Price steps</p>
     <ul><li>First hour – ₱15.00</li><li>Up to 3 hours – ₱20.00</li><li>Up to 6 hours – ₱25.00</li><li>Up to 24 hours – ₱40.00</li></ul>
     <p>Each additional day is charged the same way, so a rental never costs more than ₱40 per day.</p><p class="lead">Maximum charge</p>
@@ -2663,7 +2663,7 @@ const FAQ = (LIVE ? [['When does SILONG launch?', 'Soon. The first three Silonga
   ['What if I keep it longer?', 'There’s no late fee. You keep paying for the time, at most ₱40 a day, and the charge stops at ₱225, the price of the umbrella. At that point it’s yours to keep.'],
   ['I scanned but no umbrella came out.', 'Then nothing is charged. If you see a charge anyway, send us the reference number and it’s refunded to your linked payment.'],
   ['What if I lose or damage the umbrella?', 'Report it in the app. A lost umbrella costs at most ₱225 in total, never more. Damage charges are listed in the Terms and Conditions; normal wear and tear is free.'],
-  ['How do I pay?', 'Through the app: GCash, Maya or a debit or credit card, linked once. The machine takes no cash or coins, so every umbrella is tied to an account.'],
+  ['How do I pay?', 'Through the app with GCash, Maya or a debit or credit card, linked once, or with coins at the machine.'],
   ['How is my information used?', 'SILONG uses RFID to track rentals and returns. Customer and payment information will be kept safe, used only for proper business purposes, and not shared with unauthorized people.']
 ]);
 function viewSupport() {
@@ -3219,8 +3219,8 @@ function askAnswer(raw) {
     return bi('There’s no late fee. You keep paying for the time, at most <b>₱40 a day</b>, and the charge stops at <b>₱225</b>, the price of the umbrella. At that point it’s yours to keep.',
       'Walang late fee. Tuloy lang ang bayad ayon sa oras, hanggang <b>₱40 kada araw</b>, at titigil ang singil sa <b>₱225</b>, ang presyo ng payong. Pagdating doon, sa iyo na ito.') + `<div>${go('rates', 'See prices', 'Tingnan ang presyo')}</div>`;
   if (has('cash', 'coin', 'barya', 'gcash', 'maya', ' card', 'debit', 'pay with', 'how do i pay', 'how to pay', 'magbayad', 'payment method'))
-    return bi('You pay through the app with <b>GCash, Maya or a debit or credit card</b>, linked once. The machine takes no cash or coins, which is what lets you return it anywhere and pay only for the time you used.',
-      'Sa app ka magbabayad gamit ang <b>GCash, Maya, o debit o credit card</b>, na isang beses lang i-li-link. Walang cash o barya sa makina, kaya puwede mo itong ibalik kahit saan at magbayad lang para sa oras na ginamit mo.') + `<div>${go('wallet', 'Payment', 'Bayad')}</div>`;
+    return bi('You can pay through the app with <b>GCash, Maya or a debit or credit card</b>, linked once, or with <b>coins</b> at the machine.',
+      'Puwede kang magbayad sa app gamit ang <b>GCash, Maya, o debit o credit card</b>, na isang beses lang i-li-link, o gamit ang <b>barya</b> sa makina.') + `<div>${go('wallet', 'Payment', 'Bayad')}</div>`;
   if (has('how much', 'magkano', 'price', 'cost', ' rate', ' fee', 'presyo', 'singil', '₱', 'expensive', 'mahal'))
     return bi('You pay for the time you use: <b>₱15</b> the first hour, <b>₱20</b> up to 3 hours, <b>₱25</b> up to 6 hours, and <b>₱40</b> for a whole day. Never more than ₱40 a day, and never more than ₱225 in total.',
       'Babayaran mo lang ang oras na ginamit mo: <b>₱15</b> sa unang oras, <b>₱20</b> hanggang 3 oras, <b>₱25</b> hanggang 6 na oras, at <b>₱40</b> sa buong araw. Hindi lalampas sa ₱40 kada araw, at hindi lalampas sa ₱225 sa kabuuan.')
